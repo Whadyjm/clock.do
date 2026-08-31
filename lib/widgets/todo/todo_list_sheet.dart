@@ -213,24 +213,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
 
   void _scheduleTodoInClock(BuildContext context, TodoItem item) {
     HapticFeedback.mediumImpact();
-    final provider = context.read<ClockProvider>();
-    Navigator.of(context).pop(); // Cerrar hoja de ToDos
-
-    // Abrir hoja de agendamiento en el reloj
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: provider,
-        child: TaskFormSheet(
-          initialTitle: item.title,
-          initialDescription: item.description,
-          initialCategory: item.category,
-          initialDate: provider.selectedDate,
-        ),
-      ),
-    );
+    Navigator.of(context).pop(item); // Cerrar hoja de ToDos retornando el item a HomeScreen
   }
 
   @override

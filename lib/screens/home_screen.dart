@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/time_block.dart';
+import '../models/task_category.dart';
+import '../models/todo_item.dart';
 import '../providers/clock_provider.dart';
 import '../widgets/radial_clock_canvas.dart';
 import '../widgets/task_form_sheet.dart';
@@ -66,7 +68,16 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
-  void _openCreateSheet(BuildContext context, {double? startHour, double? endHour, DateTime? date}) {
+  void _openCreateSheet(
+    BuildContext ctx, {
+    double? startHour,
+    double? endHour,
+    DateTime? date,
+    String? initialTitle,
+    String? initialDescription,
+    TaskCategory? initialCategory,
+  }) {
+    if (!mounted) return;
     HapticFeedback.mediumImpact();
     final provider = context.read<ClockProvider>();
     showModalBottomSheet(
@@ -79,15 +90,20 @@ class _HomeScreenState extends State<HomeScreen>
           suggestedStartHour: startHour,
           suggestedEndHour: endHour,
           initialDate: date ?? provider.selectedDate,
+          initialTitle: initialTitle,
+          initialDescription: initialDescription,
+          initialCategory: initialCategory,
         ),
       ),
     );
   }
 
-  void _openEditSheet(BuildContext context, String blockId) {
+  void _openEditSheet(BuildContext ctx, String blockId) {
+    if (!mounted) return;
     HapticFeedback.selectionClick();
     final provider = context.read<ClockProvider>();
-    final block = provider.allBlocks.firstWhere((b) => b.id == blockId);
+    final block = provider.allBlocks.where((b) => b.id == blockId).firstOrNull;
+    if (block == null) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -99,7 +115,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _openMonthlyCalendar(BuildContext context) {
+  void _openMonthlyCalendar(BuildContext ctx) {
+    if (!mounted) return;
     HapticFeedback.mediumImpact();
     final provider = context.read<ClockProvider>();
     showModalBottomSheet(
@@ -113,10 +130,11 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _openTodoListSheet(BuildContext context) {
+  void _openTodoListSheet(BuildContext ctx) async {
+    if (!mounted) return;
     HapticFeedback.mediumImpact();
     final provider = context.read<ClockProvider>();
-    showModalBottomSheet(
+    final TodoItem? itemToSchedule = await showModalBottomSheet<TodoItem>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -125,9 +143,20 @@ class _HomeScreenState extends State<HomeScreen>
         child: const TodoListSheet(),
       ),
     );
+
+    if (itemToSchedule != null && mounted) {
+      _openCreateSheet(
+        context,
+        date: provider.selectedDate,
+        initialTitle: itemToSchedule.title,
+        initialDescription: itemToSchedule.description,
+        initialCategory: itemToSchedule.category,
+      );
+    }
   }
 
-  void _openNotificationSettings(BuildContext context) {
+  void _openNotificationSettings(BuildContext ctx) {
+    if (!mounted) return;
     HapticFeedback.selectionClick();
     final provider = context.read<ClockProvider>();
     showModalBottomSheet(
@@ -141,7 +170,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _openThemeSelector(BuildContext context) {
+  void _openThemeSelector(BuildContext ctx) {
+    if (!mounted) return;
     HapticFeedback.selectionClick();
     final provider = context.read<ClockProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;

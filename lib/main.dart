@@ -24,12 +24,13 @@ class ClockDoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ClockProvider(),
-      child: Consumer<ClockProvider>(
-        builder: (context, provider, _) {
+      child: Selector<ClockProvider, ThemeMode>(
+        selector: (_, provider) => provider.themeMode,
+        builder: (context, themeMode, _) {
           return MaterialApp(
             title: 'ClockDo',
             debugShowCheckedModeBanner: false,
-            themeMode: provider.themeMode,
+            themeMode: themeMode,
             theme: _buildLightTheme(),
             darkTheme: _buildDarkTheme(),
             home: const HomeScreen(),
