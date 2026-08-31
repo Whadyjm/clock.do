@@ -1,22 +1,22 @@
-# 💰 Modelo de Monetización — ClockDo (ClockDo Pro)
+# 💰 Modelo de Monetización — Clock.Do (Clock.Do Pro)
 
-Este documento detalla la estrategia de negocio, estructura de precios, división de características (*Freemium vs Pro*), tácticas de conversión y el plan técnico de implementación para monetizar **ClockDo** de forma sostenible y rentable.
+Este documento detalla la estrategia de negocio, estructura de precios, división de características (*Freemium vs Pro*), tácticas de conversión y el plan técnico de implementación para monetizar **Clock.Do** de forma sostenible y rentable.
 
 ---
 
 ## 🎯 1. Propuesta de Valor y Estrategia Central
 
-ClockDo combina la planificación visual de **Time-Blocking Radial (reloj analógico)** con la gestión de listas **ToDo**.
+Clock.Do combina la planificación visual de **Time-Blocking Radial (reloj analógico)** con la gestión de listas **ToDo**.
 
 * **Mercado Objetivo**: Profesionales, freelancers, estudiantes universitarios y personas con TDAH / ADHD que necesitan ver su tiempo de forma intuitiva en lugar de listas aburridas.
 * **Modelo Elegido**: **Freemium Híbrido** (Suscripción recurrente con opción de compra vitalicia *Lifetime*).
-* **Objetivo de Retención**: Proporcionar una experiencia gratuita excelente que enganche al usuario en su rutina diaria, y ofrecer funciones de conveniencia y automatización como incentivo para actualizar a **ClockDo Pro**.
+* **Objetivo de Retención**: Proporcionar una experiencia gratuita excelente que enganche al usuario en su rutina diaria, y ofrecer funciones de conveniencia y automatización como incentivo para actualizar a **Clock.Do Pro**.
 
 ---
 
-## ⚖️ 2. Matriz de Características: Versión Gratis vs ClockDo Pro
+## ⚖️ 2. Matriz de Características: Versión Gratis vs Clock.Do Pro
 
-| Característica | 🆓 ClockDo Free | 💎 ClockDo Pro |
+| Característica | 🆓 Clock.Do Free | 💎 Clock.Do Pro |
 | :--- | :---: | :---: |
 | **Reloj Radial Analógico (12h y 24h)** | ✅ Ilimitado | ✅ Ilimitado |
 | **Creación interactiva de tareas por arrastre** | ✅ Incluido | ✅ Incluido |
@@ -50,7 +50,7 @@ La combinación de **anual con prueba gratuita** + **opción vitalicia (Lifetime
 
 ## 🚀 4. Los 4 Grandes Disparadores de Compra (*Value Drivers*)
 
-Los usuarios deciden pagar por ClockDo Pro principalmente por estas 4 utilidades:
+Los usuarios deciden pagar por Clock.Do Pro principalmente por estas 4 utilidades:
 
 ### 1. 🔄 Sincronización con Calendarios Externos
 * Al conectar Google Calendar o Apple Calendar, las reuniones de trabajo y compromisos aparecen automáticamente como arcos de color en el reloj radial.
@@ -73,7 +73,7 @@ Los usuarios deciden pagar por ClockDo Pro principalmente por estas 4 utilidades
 1. **Onboarding suave (Primeros 3 días)**:
    - Permitir al usuario explorar la app sin pop-ups agresivos para que experimente el valor del reloj radial (*Momento Ajá!*).
 2. **Disparadores Contextuales**:
-   - Si el usuario intenta agregar una tarea repetitiva o conectar su calendario, abrir una ventana elegante (Paywall) explicando los beneficios de ClockDo Pro con opción de prueba gratuita de 7 días.
+   - Si el usuario intenta agregar una tarea repetitiva o conectar su calendario, abrir una ventana elegante (Paywall) explicando los beneficios de Clock.Do Pro con opción de prueba gratuita de 7 días.
 3. **Prueba Gratuita sin Riesgo (7-Day Free Trial)**:
    - Recordatorio automático 2 días antes de que finalice la prueba gratuita para generar confianza y reducir reembolsos.
 4. **Desbloqueo Recompensado Opcional (Rewarded Ads)**:

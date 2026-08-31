@@ -28,7 +28,7 @@ class ClockDoApp extends StatelessWidget {
         selector: (_, provider) => provider.themeMode,
         builder: (context, themeMode, _) {
           return MaterialApp(
-            title: 'ClockDo',
+            title: 'Clock.Do',
             debugShowCheckedModeBanner: false,
             themeMode: themeMode,
             theme: _buildLightTheme(),

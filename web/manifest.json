@@ -1,6 +1,6 @@
 {
-    "name": "clockdo",
-    "short_name": "clockdo",
+    "name": "Clock.Do",
+    "short_name": "Clock.Do",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

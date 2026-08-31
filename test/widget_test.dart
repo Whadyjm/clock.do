@@ -14,7 +14,7 @@ void main() {
     await initializeDateFormatting('es', null);
   });
 
-  testWidgets('ClockDo app renders HomeScreen, WeeklyDateStrip, calendar and notification buttons', (WidgetTester tester) async {
+  testWidgets('Clock.Do app renders HomeScreen, WeeklyDateStrip, calendar and notification buttons', (WidgetTester tester) async {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => ClockProvider(),
