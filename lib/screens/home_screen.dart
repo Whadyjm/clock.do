@@ -9,6 +9,7 @@ import '../widgets/task_form_sheet.dart';
 import '../widgets/calendar/weekly_date_strip.dart';
 import '../widgets/calendar/monthly_calendar_sheet.dart';
 import '../widgets/settings/notification_settings_sheet.dart';
+import '../widgets/todo/todo_list_sheet.dart';
 import '../utils/radial_math.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -108,6 +109,20 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (_) => ChangeNotifierProvider.value(
         value: provider,
         child: const MonthlyCalendarSheet(),
+      ),
+    );
+  }
+
+  void _openTodoListSheet(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    final provider = context.read<ClockProvider>();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: provider,
+        child: const TodoListSheet(),
       ),
     );
   }
@@ -413,10 +428,22 @@ class _HomeScreenState extends State<HomeScreen>
 
           const SizedBox(width: 8),
 
-          // Botones de acción del header (Recordatorios, Tema, Calendario, Toggle 12/24H)
+          // Botones de acción del header (ToDo, Recordatorios, Tema, Calendario, Toggle 12/24H)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Botón de Tareas ToDo (Backlog)
+              _buildHeaderIconButton(
+                buttonBg: buttonBg,
+                tooltip: provider.pendingTodoCount == 1
+                    ? '1 tarea pendiente'
+                    : '${provider.pendingTodoCount} pendientes',
+                icon: Icons.checklist_rounded,
+                badgeCount: provider.pendingTodoCount,
+                onTap: () => _openTodoListSheet(context),
+              ),
+              const SizedBox(width: 5),
+
               // Botón de Recordatorios / Notificaciones
               _buildHeaderIconButton(
                 buttonBg: buttonBg,
@@ -488,6 +515,7 @@ class _HomeScreenState extends State<HomeScreen>
     required String tooltip,
     required IconData icon,
     required VoidCallback onTap,
+    int? badgeCount,
   }) {
     return Tooltip(
       message: tooltip,
@@ -500,7 +528,41 @@ class _HomeScreenState extends State<HomeScreen>
             color: buttonBg,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFF6C5CE7), size: 17),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Icon(icon, color: const Color(0xFF6C5CE7), size: 17),
+              if (badgeCount != null && badgeCount > 0)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                    constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6B81),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).cardColor,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

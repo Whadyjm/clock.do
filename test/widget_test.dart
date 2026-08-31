@@ -30,8 +30,16 @@ void main() {
     // Verifica componentes principales
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(WeeklyDateStrip), findsOneWidget);
+    expect(find.byIcon(Icons.checklist_rounded), findsOneWidget);
     expect(find.byIcon(Icons.calendar_month_rounded), findsOneWidget);
     expect(find.byIcon(Icons.notifications_active_rounded), findsOneWidget);
     expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+
+    // Tocar el botón de ToDo para abrir la hoja
+    await tester.tap(find.byIcon(Icons.checklist_rounded));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Tareas ToDo'), findsOneWidget);
+    expect(find.text('Pendientes'), findsOneWidget);
   });
 }

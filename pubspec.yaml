@@ -1,4 +1,4 @@
-name: clock.do
+name: clockdo
 description: "Clock.Do — Radial Time-Blocking ToDo App"
 publish_to: 'none'
 version: 1.0.0+1

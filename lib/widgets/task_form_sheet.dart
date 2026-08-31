@@ -13,6 +13,9 @@ class TaskFormSheet extends StatefulWidget {
   final double? suggestedStartHour;
   final double? suggestedEndHour;
   final DateTime? initialDate;
+  final String? initialTitle;
+  final String? initialDescription;
+  final TaskCategory? initialCategory;
 
   const TaskFormSheet({
     super.key,
@@ -20,6 +23,9 @@ class TaskFormSheet extends StatefulWidget {
     this.suggestedStartHour,
     this.suggestedEndHour,
     this.initialDate,
+    this.initialTitle,
+    this.initialDescription,
+    this.initialCategory,
   });
 
   @override
@@ -40,9 +46,9 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   void initState() {
     super.initState();
     final block = widget.existingBlock;
-    _titleCtrl = TextEditingController(text: block?.title ?? '');
-    _descCtrl = TextEditingController(text: block?.description ?? '');
-    _selectedCategory = block?.category ?? TaskCategory.work;
+    _titleCtrl = TextEditingController(text: block?.title ?? widget.initialTitle ?? '');
+    _descCtrl = TextEditingController(text: block?.description ?? widget.initialDescription ?? '');
+    _selectedCategory = block?.category ?? widget.initialCategory ?? TaskCategory.work;
     _selectedDate = block?.date ?? widget.initialDate ?? normalizeDate(DateTime.now());
     _startHour = block?.startHour ??
         widget.suggestedStartHour ??

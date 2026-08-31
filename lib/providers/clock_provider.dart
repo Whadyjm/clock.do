@@ -4,16 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
+import '../models/todo_item.dart';
 import '../services/notification_service.dart';
 
 const _kStorageKey = 'clockdo_tasks';
+const _kTodoStorageKey = 'clockdo_todos';
 const _kThemeStorageKey = 'clockdo_theme_mode';
 const _kReminderMinutesKey = 'clockdo_reminder_minutes';
 const _kNotifEnabledKey = 'clockdo_notif_enabled';
 
-/// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas y calendario.
+/// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario y tareas ToDo.
 class ClockProvider extends ChangeNotifier {
   final List<TimeBlock> _blocks = [];
+  final List<TodoItem> _todoItems = [];
   bool _is24h = false;
   ThemeMode _themeMode = ThemeMode.system;
   DateTime _now = DateTime.now();
@@ -28,7 +31,7 @@ class ClockProvider extends ChangeNotifier {
   final NotificationService _notifService = NotificationService();
 
   // ──────────────────────────────────────────────
-  // Getters
+  // Getters Bloques de Tiempo
   // ──────────────────────────────────────────────
 
   /// Todos los bloques de tiempo guardados.
@@ -43,6 +46,24 @@ class ClockProvider extends ChangeNotifier {
 
   /// Bloques del día (legacy getter para compatibilidad).
   List<TimeBlock> get blocks => selectedDateBlocks;
+
+  // ──────────────────────────────────────────────
+  // Getters Tareas ToDo (Backlog)
+  // ──────────────────────────────────────────────
+
+  /// Todas las tareas ToDo guardadas.
+  List<TodoItem> get todoItems => List.unmodifiable(_todoItems);
+
+  /// Cantidad de tareas ToDo pendientes (sin completar).
+  int get pendingTodoCount => _todoItems.where((t) => !t.isCompleted).length;
+
+  /// Lista de tareas ToDo pendientes.
+  List<TodoItem> get pendingTodos =>
+      _todoItems.where((t) => !t.isCompleted).toList();
+
+  /// Lista de tareas ToDo completadas.
+  List<TodoItem> get completedTodos =>
+      _todoItems.where((t) => t.isCompleted).toList();
 
   bool get is24h => _is24h;
 
@@ -328,6 +349,83 @@ class ClockProvider extends ChangeNotifier {
   }
 
   // ──────────────────────────────────────────────
+  // CRUD de Tareas ToDo (Backlog)
+  // ──────────────────────────────────────────────
+
+  void addTodo(TodoItem item) {
+    _todoItems.insert(0, item); // Las más recientes arriba
+    _saveTodosToStorage();
+    notifyListeners();
+  }
+
+  void updateTodo(TodoItem updated) {
+    final idx = _todoItems.indexWhere((t) => t.id == updated.id);
+    if (idx != -1) {
+      _todoItems[idx] = updated;
+      _saveTodosToStorage();
+      notifyListeners();
+    }
+  }
+
+  void toggleTodo(String id) {
+    final idx = _todoItems.indexWhere((t) => t.id == id);
+    if (idx == -1) return;
+    final item = _todoItems[idx];
+    final nextCompleted = !item.isCompleted;
+    _todoItems[idx] = item.copyWith(
+      isCompleted: nextCompleted,
+      completedAt: nextCompleted ? DateTime.now() : null,
+      clearCompletedAt: !nextCompleted,
+    );
+    _saveTodosToStorage();
+    notifyListeners();
+  }
+
+  void deleteTodo(String id) {
+    _todoItems.removeWhere((t) => t.id == id);
+    _saveTodosToStorage();
+    notifyListeners();
+  }
+
+  void clearCompletedTodos() {
+    _todoItems.removeWhere((t) => t.isCompleted);
+    _saveTodosToStorage();
+    notifyListeners();
+  }
+
+  /// Convierte o agenda una tarea ToDo como bloque de tiempo en el reloj radial.
+  void scheduleTodoAsBlock({
+    required String todoId,
+    required DateTime date,
+    required double startHour,
+    required double endHour,
+    bool markTodoCompleted = false,
+  }) {
+    final idx = _todoItems.indexWhere((t) => t.id == todoId);
+    if (idx == -1) return;
+    final todo = _todoItems[idx];
+
+    final block = TimeBlock.create(
+      title: todo.title,
+      description: todo.description,
+      date: date,
+      startHour: startHour,
+      endHour: endHour,
+      category: todo.category,
+    );
+    addBlock(block);
+
+    if (markTodoCompleted) {
+      _todoItems[idx] = todo.copyWith(
+        isCompleted: true,
+        completedAt: DateTime.now(),
+      );
+      _saveTodosToStorage();
+    }
+    notifyListeners();
+  }
+
+  // ──────────────────────────────────────────────
   // Lógica de anillos concéntricos por día
   // ──────────────────────────────────────────────
 
@@ -389,6 +487,12 @@ class ClockProvider extends ChangeNotifier {
     await prefs.setStringList(_kStorageKey, jsonList);
   }
 
+  Future<void> _saveTodosToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = _todoItems.map((t) => jsonEncode(t.toJson())).toList();
+    await prefs.setStringList(_kTodoStorageKey, jsonList);
+  }
+
   Future<void> _loadFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -412,7 +516,7 @@ class ClockProvider extends ChangeNotifier {
       }
     }
 
-    // Cargar Tareas
+    // Cargar Tareas del Reloj
     final jsonList = prefs.getStringList(_kStorageKey) ?? [];
     _blocks.clear();
     for (final json in jsonList) {
@@ -424,6 +528,18 @@ class ClockProvider extends ChangeNotifier {
     }
     _recalculateAllRings();
     _rescheduleAllNotifications();
+
+    // Cargar Tareas ToDo (Backlog)
+    final todoJsonList = prefs.getStringList(_kTodoStorageKey) ?? [];
+    _todoItems.clear();
+    for (final json in todoJsonList) {
+      try {
+        _todoItems.add(TodoItem.fromJson(jsonDecode(json)));
+      } catch (_) {
+        // Ignorar items corruptos
+      }
+    }
+
     notifyListeners();
   }
 
