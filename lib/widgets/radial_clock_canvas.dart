@@ -422,6 +422,9 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
   Offset? _center;
   double? _clockRadius;
 
+  // Haptic: último "slot de 5 minutos" disparado
+  int? _lastHapticSlot;
+
   late AnimationController _bounceCtrl;
   late Animation<double> _bounceAnim;
 
@@ -456,15 +459,44 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
     return d >= _clockRadius! * 0.45 && d <= _clockRadius! + 15;
   }
 
-  TimeBlock? _blockAt(double angle) {
-    if (_center == null) return null;
+  TimeBlock? _blockAt(Offset localPosition) {
+    if (_center == null || _clockRadius == null) return null;
+
+    final d = RadialMath.distanceFromCenter(localPosition, _center!);
+    final angle = RadialMath.offsetToAngle(localPosition, _center!);
     final h = RadialMath.angleToHour(angle, is24h: widget.is24h);
+    final total = widget.is24h ? 24.0 : 12.0;
+
+    // Parámetros del anillo (deben coincidir con RadialClockPainter)
+    final outerOrbitR = _clockRadius! - 10.0;
+    final innerOrbitR = _clockRadius! - 38.0;
+    final arcMidR = (outerOrbitR + innerOrbitR) / 2;
+    final halfThick = (outerOrbitR - innerOrbitR) / 2;
+
+    TimeBlock? best;
+    double bestDist = double.infinity;
+
     for (final b in widget.blocks) {
-      final s = widget.is24h ? b.startHour : b.startHour % 12;
-      final e = widget.is24h ? b.endHour   : b.endHour   % 12;
-      if (h >= s && h < e) return b;
+      // Radio del anillo de este bloque
+      final ribbonR = arcMidR - b.ringIndex * 14.0;
+      final radialDist = (d - ribbonR).abs();
+      // Tolerancia de 8px extra para facilitar el toque
+      if (radialDist > halfThick + 8) continue;
+
+      // Verificar el ángulo en modo 12h o 24h
+      final s = widget.is24h ? b.startHour : b.startHour % total;
+      var e = widget.is24h ? b.endHour   : b.endHour   % total;
+      // Bloque que cruza el 0/12 en el dial
+      final wraps = e <= s;
+      final inArc = wraps ? (h >= s || h < e) : (h >= s && h < e);
+      if (!inArc) continue;
+
+      if (radialDist < bestDist) {
+        bestDist = radialDist;
+        best = b;
+      }
     }
-    return null;
+    return best;
   }
 
   @override
@@ -493,15 +525,22 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
           },
           onPanUpdate: (d) {
             if (_gestureStartAngle == null) return;
-            setState(() => _gestureCurrentAngle =
-                RadialMath.offsetToAngle(d.localPosition, _center!));
+            final newAngle = RadialMath.offsetToAngle(d.localPosition, _center!);
+            final currentH = RadialMath.angleToHour(newAngle, is24h: widget.is24h);
+            // Haptic cada 5 minutos (1/12 de hora)
+            final slot = (currentH * 12).floor(); // 5-min slots
+            if (_lastHapticSlot != null && slot != _lastHapticSlot) {
+              HapticFeedback.selectionClick();
+            }
+            _lastHapticSlot = slot;
+            setState(() => _gestureCurrentAngle = newAngle);
           },
           onPanEnd: (_) {
             if (_gestureStartAngle == null || _gestureCurrentAngle == null) return;
             final sweep = RadialMath.sweepAngle(
                 _gestureStartAngle!, _gestureCurrentAngle!);
             if (sweep > 0.08) {
-              HapticFeedback.lightImpact();
+              HapticFeedback.mediumImpact();
               final startH = RadialMath.angleToHour(
                   _gestureStartAngle!, is24h: widget.is24h);
               var endH = RadialMath.angleToHour(
@@ -511,6 +550,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
               _bounceCtrl.forward(from: 0);
               widget.onGestureComplete(startH, endH);
             }
+            _lastHapticSlot = null;
             setState(() {
               _gestureStartAngle   = null;
               _gestureCurrentAngle = null;
@@ -518,24 +558,147 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
           },
           onTapUp: (d) {
             if (_center == null) return;
-            HapticFeedback.selectionClick();
-            final angle = RadialMath.offsetToAngle(d.localPosition, _center!);
-            final block = _blockAt(angle);
-            if (block != null) widget.onBlockTap?.call(block.id);
+            if (!_isOnRing(d.localPosition)) return;
+            final block = _blockAt(d.localPosition);
+            if (block != null) {
+              HapticFeedback.selectionClick();
+              widget.onBlockTap?.call(block.id);
+            }
           },
-          child: CustomPaint(
-            size: size,
-            painter: RadialClockPainter(
-              blocks: widget.blocks,
-              now: DateTime.now(),
-              is24h: widget.is24h,
-              isDark: isDark,
-              gestureStartAngle: _gestureStartAngle,
-              gestureCurrentAngle: _gestureCurrentAngle,
-            ),
+          child: Stack(
+            children: [
+              CustomPaint(
+                size: size,
+                painter: RadialClockPainter(
+                  blocks: widget.blocks,
+                  now: DateTime.now(),
+                  is24h: widget.is24h,
+                  isDark: isDark,
+                  gestureStartAngle: _gestureStartAngle,
+                  gestureCurrentAngle: _gestureCurrentAngle,
+                ),
+              ),
+              // Panel flotante de hora durante el gesto
+              if (_gestureStartAngle != null && _gestureCurrentAngle != null)
+                _buildTimeBubble(context, isDark),
+            ],
           ),
         ),
       );
     });
+  }
+
+  Widget _buildTimeBubble(BuildContext context, bool isDark) {
+    final startH = RadialMath.angleToHour(
+        _gestureStartAngle!, is24h: widget.is24h);
+    var endH = RadialMath.angleToHour(
+        _gestureCurrentAngle!, is24h: widget.is24h);
+    final total = widget.is24h ? 24.0 : 12.0;
+    if (endH <= startH) endH += total;
+
+    final startStr = RadialMath.decimalHoursToString(startH);
+    final endStr   = RadialMath.decimalHoursToString(endH);
+
+    final durMin = ((endH - startH) * 60).round();
+    final durH   = durMin ~/ 60;
+    final durM   = durMin % 60;
+    final durStr = durH > 0
+        ? (durM > 0 ? '${durH}h ${durM}m' : '${durH}h')
+        : '${durM}m';
+
+    final bg    = isDark ? const Color(0xFF1A1D2E) : Colors.white;
+    final fg    = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final sub   = const Color(0xFF9E98D4);
+    final accent = const Color(0xFF6C5CE7);
+
+    // Centro del reloj
+    final cx = (_center?.dx ?? 0);
+    final cy = (_center?.dy ?? 0);
+    const w = 176.0;
+    const h = 76.0;
+
+    return Positioned(
+      left:  cx - w / 2,
+      top:   cy - h / 2,
+      width: w,
+      child: AnimatedOpacity(
+        opacity: 1.0,
+        duration: const Duration(milliseconds: 150),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.25),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: isDark ? 0.25 : 0.12),
+                blurRadius: 20,
+                spreadRadius: 0,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Horario
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _timeChip(startStr, accent, fg, isDark),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(Icons.arrow_forward_rounded,
+                        size: 12, color: sub),
+                  ),
+                  _timeChip(endStr, accent, fg, isDark),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Duración
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  durStr,
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _timeChip(String time, Color accent, Color fg, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: isDark ? 0.18 : 0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        time,
+        style: TextStyle(
+          color: fg,
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
+        ),
+      ),
+    );
   }
 }

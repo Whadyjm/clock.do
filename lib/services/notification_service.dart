@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/time_block.dart';
 import '../utils/radial_math.dart';
+
 
 /// Servicio singleton para gestionar las notificaciones locales y recordatorios de ClockDo.
 class NotificationService {
@@ -23,6 +26,15 @@ class NotificationService {
     try {
       // Inicializar base de datos de zonas horarias
       tz.initializeTimeZones();
+      // Detectar zona horaria del dispositivo automáticamente
+      try {
+        final timeZoneName = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(timeZoneName));
+        debugPrint('[ClockDo Notif] Timezone detected: $timeZoneName');
+      } catch (e) {
+        debugPrint('[ClockDo Notif] Could not detect timezone, using UTC: $e');
+      }
+
 
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const darwinSettings = DarwinInitializationSettings(
@@ -37,14 +49,38 @@ class NotificationService {
         macOS: darwinSettings,
       );
 
-      await _plugin.initialize(initSettings);
-    } catch (_) {
-      // En entorno de testing o sin canal nativo disponible
+      final initialized = await _plugin.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          debugPrint('[ClockDo Notif] Notification tapped: ${response.payload}');
+        },
+      );
+      debugPrint('[ClockDo Notif] Plugin initialized: $initialized');
+
+      // Crear canal de Android explícitamente
+      final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (androidImpl != null) {
+        await androidImpl.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _channelId,
+            _channelName,
+            description: _channelDesc,
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+        debugPrint('[ClockDo Notif] Android notification channel created');
+      }
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR during init: $e');
     }
     _isInitialized = true;
   }
 
-  /// Solicita permisos de notificación en Android 13+ y iOS
+  /// Solicita permisos de notificación en Android 13+ y iOS,
+  /// incluyendo permiso de alarma exacta en Android 12+.
   Future<bool> requestPermissions() async {
     if (!_isInitialized) await init();
 
@@ -52,8 +88,15 @@ class NotificationService {
       final androidImpl = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (androidImpl != null) {
-        final granted = await androidImpl.requestNotificationsPermission();
-        return granted ?? false;
+        // Permiso de notificaciones (Android 13+)
+        final notifGranted = await androidImpl.requestNotificationsPermission();
+        debugPrint('[ClockDo Notif] Android notification permission: $notifGranted');
+
+        // Permiso de alarma exacta (Android 12+ / API 31+)
+        final exactAlarmGranted = await androidImpl.requestExactAlarmsPermission();
+        debugPrint('[ClockDo Notif] Android exact alarm permission: $exactAlarmGranted');
+
+        return (notifGranted ?? false) && (exactAlarmGranted ?? false);
       }
 
       final iosImpl = _plugin.resolvePlatformSpecificImplementation<
@@ -64,9 +107,12 @@ class NotificationService {
           badge: true,
           sound: true,
         );
+        debugPrint('[ClockDo Notif] iOS permission: $granted');
         return granted ?? false;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR requesting permissions: $e');
+    }
 
     return true;
   }
@@ -101,7 +147,10 @@ class NotificationService {
         'Tus recordatorios están configurados para avisarte $timingText antes de cada bloque.',
         details,
       );
-    } catch (_) {}
+      debugPrint('[ClockDo Notif] Test notification sent');
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR sending test notification: $e');
+    }
   }
 
   /// Programa el recordatorio de un bloque de tiempo según los minutos globales de anticipación
@@ -110,16 +159,22 @@ class NotificationService {
     required int minutesBefore,
     required bool enabled,
   }) async {
-    if (!enabled) return;
+    if (!enabled) {
+      debugPrint('[ClockDo Notif] Notifications disabled, skipping schedule for "${block.title}"');
+      return;
+    }
     if (!_isInitialized) await init();
 
     // Cancelar recordatorio previo si existe
     await cancelTaskReminder(block.id);
 
     // No programar tareas ya completadas
-    if (block.status == TaskStatus.completed) return;
+    if (block.status == TaskStatus.completed) {
+      debugPrint('[ClockDo Notif] Block "${block.title}" already completed, skipping');
+      return;
+    }
 
-    // Calcular hora y minutos de inicio
+    // Calcular hora y minutos de inicio a partir del valor decimal 0-24
     final hour = block.startHour.floor() % 24;
     final minute = ((block.startHour - block.startHour.floor()) * 60).round();
 
@@ -135,7 +190,11 @@ class NotificationService {
     final reminderTime = taskStart.subtract(Duration(minutes: minutesBefore));
 
     // Solo programar si la hora del recordatorio es en el futuro
-    if (reminderTime.isBefore(DateTime.now())) return;
+    if (reminderTime.isBefore(DateTime.now())) {
+      debugPrint('[ClockDo Notif] Reminder time for "${block.title}" is in the past '
+          '($reminderTime vs ${DateTime.now()}), skipping');
+      return;
+    }
 
     final id = _notificationId(block.id);
     final timeFormatted = RadialMath.decimalHoursToString(block.startHour);
@@ -162,6 +221,9 @@ class NotificationService {
     try {
       final scheduledTz = tz.TZDateTime.from(reminderTime, tz.local);
 
+      debugPrint('[ClockDo Notif] Scheduling notification #$id for "${block.title}" '
+          'at $scheduledTz (task starts at $taskStart, reminder $minutesBefore min before)');
+
       await _plugin.zonedSchedule(
         id,
         '⏰ ${block.title}',
@@ -172,7 +234,11 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-    } catch (_) {}
+
+      debugPrint('[ClockDo Notif] ✅ Successfully scheduled notification #$id');
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ❌ ERROR scheduling notification for "${block.title}": $e');
+    }
   }
 
   /// Cancela el recordatorio de una tarea específica
@@ -180,7 +246,9 @@ class NotificationService {
     if (!_isInitialized) await init();
     try {
       await _plugin.cancel(_notificationId(blockId));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR cancelling notification for $blockId: $e');
+    }
   }
 
   /// Cancela todas las notificaciones programadas
@@ -188,7 +256,26 @@ class NotificationService {
     if (!_isInitialized) await init();
     try {
       await _plugin.cancelAll();
-    } catch (_) {}
+      debugPrint('[ClockDo Notif] All notifications cancelled');
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR cancelling all notifications: $e');
+    }
+  }
+
+  /// Obtiene la lista de notificaciones pendientes (útil para debug)
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    if (!_isInitialized) await init();
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      debugPrint('[ClockDo Notif] Pending notifications: ${pending.length}');
+      for (final n in pending) {
+        debugPrint('[ClockDo Notif]   - #${n.id}: ${n.title}');
+      }
+      return pending;
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR getting pending notifications: $e');
+      return [];
+    }
   }
 
   /// Convierte un UUID string a un entero seguro para Android Notification ID
@@ -196,3 +283,4 @@ class NotificationService {
     return blockId.hashCode.abs() % 2147483647;
   }
 }
+

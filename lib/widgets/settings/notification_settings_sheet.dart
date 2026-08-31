@@ -29,9 +29,10 @@ class NotificationSettingsSheet extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = Theme.of(context).cardColor;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, 28 + bottomPadding),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),

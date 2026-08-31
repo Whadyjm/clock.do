@@ -68,9 +68,10 @@ class _MonthlyCalendarSheetState extends State<MonthlyCalendarSheet> {
     }
 
     final monthTitle = DateFormat('MMMM yyyy', 'es').format(_displayedMonth);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 28),
+      padding: EdgeInsets.fromLTRB(24, 14, 24, 24 + bottomPadding),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),

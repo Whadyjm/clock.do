@@ -25,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _headerCtrl;
   late Animation<Offset> _headerSlide;
   late Animation<double> _headerFade;
+  // Scroll de la lista de tareas — controla la altura del reloj
+  late ScrollController _taskScrollCtrl;
 
   @override
   void initState() {
@@ -50,12 +52,16 @@ class _HomeScreenState extends State<HomeScreen>
     ).animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOutCubic));
     _headerFade = Tween(begin: 0.0, end: 1.0)
         .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut));
+
+    // Scroll de tareas
+    _taskScrollCtrl = ScrollController();
   }
 
   @override
   void dispose() {
     _fabCtrl.dispose();
     _headerCtrl.dispose();
+    _taskScrollCtrl.dispose();
     super.dispose();
   }
 
@@ -126,12 +132,12 @@ class _HomeScreenState extends State<HomeScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = Theme.of(context).cardColor;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottomPadding),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -280,11 +286,15 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenH = MediaQuery.of(context).size.height;
+    final clockMaxH = screenH * 0.44;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
+            // ── Header (fecha / hora / botones) ─────────────────
             FadeTransition(
               opacity: _headerFade,
               child: SlideTransition(
@@ -292,11 +302,34 @@ class _HomeScreenState extends State<HomeScreen>
                 child: _buildHeader(context),
               ),
             ),
-            const SizedBox(height: 8),
-            // Tira semanal / mensual de selección de días
+            // ── Tira semanal ───────────────────────────────
             const WeeklyDateStrip(),
-            _buildClockSection(context),
-            _buildTaskList(context),
+            // ── Reloj colapsable (FUERA del scroll) ────────────
+            // AnimatedBuilder escucha el scroll de la lista de tareas
+            // y encoge la altura del reloj sin que haya competencia
+            // de gestos entre el reloj y el scroll.
+            AnimatedBuilder(
+              animation: _taskScrollCtrl,
+              builder: (ctx, _) {
+                final offset = _taskScrollCtrl.hasClients
+                    ? _taskScrollCtrl.offset.clamp(0.0, clockMaxH)
+                    : 0.0;
+                final clockH = (clockMaxH - offset).clamp(0.0, clockMaxH);
+                final shrinkRatio = offset / clockMaxH;
+                return SizedBox(
+                  height: clockH,
+                  child: _buildClockWidget(ctx, shrinkRatio),
+                );
+              },
+            ),
+            // ── Lista de tareas (scroll propio) ────────────────
+            Expanded(
+              child: CustomScrollView(
+                controller: _taskScrollCtrl,
+                physics: const BouncingScrollPhysics(),
+                slivers: _buildTaskSlivers(context),
+              ),
+            ),
           ],
         ),
       ),
@@ -474,42 +507,56 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Sección del reloj
+  // Reloj (widget puro, sin Expanded)
   // ──────────────────────────────────────────────
 
-  Widget _buildClockSection(BuildContext context) {
-    final provider = context.watch<ClockProvider>();
-    final dayBlocks = provider.selectedDateBlocks;
+  Widget _buildClockWidget(BuildContext outerCtx, double shrinkRatio) {
+    // Desvanece y achica el reloj conforme se colapsa
+    final opacity = (1.0 - shrinkRatio * 1.4).clamp(0.0, 1.0);
+    final scale   = (1.0 - shrinkRatio * 0.15).clamp(0.0, 1.0);
 
-    return Expanded(
-      flex: 6,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: RadialClockCanvas(
-            key: ValueKey('${provider.selectedDate.toIso8601String()}_${provider.is24h}'),
-            blocks: dayBlocks,
-            currentHour: provider.currentHourView,
-            is24h: provider.is24h,
-            onGestureComplete: (s, e) => _openCreateSheet(
-              context,
-              startHour: s,
-              endHour: e,
-              date: provider.selectedDate,
+    // Consumer garantiza que el reloj se reconstruya cada segundo cuando
+    // ClockProvider llama a notifyListeners(), sin depender del contexto
+    // del SliverPersistentHeaderDelegate.
+    return Consumer<ClockProvider>(
+      builder: (ctx, provider, _) {
+        final dayBlocks = provider.selectedDateBlocks;
+
+        return Opacity(
+          opacity: opacity,
+          child: Transform.scale(
+            scale: scale,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: RadialClockCanvas(
+                  key: ValueKey(
+                      '${provider.selectedDate.toIso8601String()}_${provider.is24h}'),
+                  blocks: dayBlocks,
+                  currentHour: provider.currentHourView,
+                  is24h: provider.is24h,
+                  onGestureComplete: (s, e) => _openCreateSheet(
+                    ctx,
+                    startHour: s,
+                    endHour: e,
+                    date: provider.selectedDate,
+                  ),
+                  onBlockTap: (id) => _openEditSheet(ctx, id),
+                ),
+              ),
             ),
-            onBlockTap: (id) => _openEditSheet(context, id),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   // ──────────────────────────────────────────────
-  // Lista de tareas
+  // Lista de tareas como slivers
   // ──────────────────────────────────────────────
 
-  Widget _buildTaskList(BuildContext context) {
+  List<Widget> _buildTaskSlivers(BuildContext context) {
     final provider = context.watch<ClockProvider>();
     final blocks = provider.selectedDateBlocks;
     final isToday = provider.isViewingToday;
@@ -518,116 +565,125 @@ class _HomeScreenState extends State<HomeScreen>
         : DateFormat('d MMM', 'es').format(provider.selectedDate).toUpperCase();
 
     if (blocks.isEmpty) {
-      return Expanded(
-        flex: 3,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.8, end: 1.0),
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.elasticOut,
-                builder: (_, v, child) => Transform.scale(scale: v, child: child),
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.touch_app_rounded,
-                    color: Color(0xFF6C5CE7),
-                    size: 24,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                isToday ? 'No tienes tareas hoy' : 'Sin tareas para este día',
-                style: const TextStyle(
-                  color: Color(0xFF9E98D4),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Toca y arrastra en el reloj para agendar',
-                style: TextStyle(
-                  color: Color(0xFFBBB5E8),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Expanded(
-      flex: 3,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
-            child: Row(
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.8, end: 1.0),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.elasticOut,
+                  builder: (_, v, child) =>
+                      Transform.scale(scale: v, child: child),
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.touch_app_rounded,
+                      color: Color(0xFF6C5CE7),
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Text(
-                  dateLabel,
+                  isToday
+                      ? 'No tienes tareas hoy'
+                      : 'Sin tareas para este día',
                   style: const TextStyle(
                     color: Color(0xFF9E98D4),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6C5CE7),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${blocks.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Toca y arrastra en el reloj para agendar',
+                  style: TextStyle(
+                    color: Color(0xFFBBB5E8),
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              itemCount: blocks.length,
-              itemBuilder: (ctx, i) {
-                return TweenAnimationBuilder<double>(
-                  key: ValueKey(blocks[i].id),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: Duration(milliseconds: 250 + i * 50),
-                  curve: Curves.easeOutCubic,
-                  builder: (_, v, child) => Opacity(
-                    opacity: v,
-                    child: Transform.translate(
-                      offset: Offset(0, 20 * (1 - v)),
-                      child: child,
-                    ),
+        ),
+      ];
+    }
+
+    return [
+      // Encabezado con conteo
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 4),
+          child: Row(
+            children: [
+              Text(
+                dateLabel,
+                style: const TextStyle(
+                  color: Color(0xFF9E98D4),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6C5CE7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${blocks.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                   ),
-                  child: _buildTaskTile(ctx, blocks[i]),
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    );
+      // Tarjetas de tareas
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          100 + MediaQuery.of(context).padding.bottom,
+        ),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (ctx, i) => TweenAnimationBuilder<double>(
+              key: ValueKey(blocks[i].id),
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: Duration(milliseconds: 250 + i * 50),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, child) => Opacity(
+                opacity: v,
+                child: Transform.translate(
+                  offset: Offset(0, 20 * (1 - v)),
+                  child: child,
+                ),
+              ),
+              child: _buildTaskTile(ctx, blocks[i]),
+            ),
+            childCount: blocks.length,
+          ),
+        ),
+      ),
+    ];
   }
 
   Widget _buildTaskTile(BuildContext context, TimeBlock block) {
@@ -666,7 +722,7 @@ class _HomeScreenState extends State<HomeScreen>
               decoration: BoxDecoration(
                 color: isCompleted
                     ? block.category.color.withValues(alpha: 0.3)
-                    : block.category.color,
+                : block.category.color,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -777,37 +833,97 @@ class _HomeScreenState extends State<HomeScreen>
   // ──────────────────────────────────────────────
 
   Widget _buildFAB(BuildContext context) {
-    return ScaleTransition(
-      scale: _fabScale,
-      child: Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF8B7CF6), Color(0xFF6C5CE7)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF6C5CE7).withValues(alpha: 0.45),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset * 0.4 : 0),
+      child: ScaleTransition(
+        scale: _fabScale,
+        child: Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF8B7CF6), Color(0xFF6C5CE7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
             borderRadius: BorderRadius.circular(20),
-            onTap: () => _openCreateSheet(context),
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6C5CE7).withValues(alpha: 0.45),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => _openCreateSheet(context),
+              child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+// ──────────────────────────────────────────────
+// Delegate para la tira semanal sticky
+// ──────────────────────────────────────────────
+
+class _StickyWeeklyStripDelegate extends SliverPersistentHeaderDelegate {
+  @override
+  double get minExtent => 98;
+  @override
+  double get maxExtent => 98;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    return Container(
+      color: bgColor,
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: const WeeklyDateStrip(),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StickyWeeklyStripDelegate old) => false;
+}
+
+// ──────────────────────────────────────────────
+// Delegate para el reloj colapsable
+// ──────────────────────────────────────────────
+
+class _ClockSliverDelegate extends SliverPersistentHeaderDelegate {
+  @override
+  final double maxExtent;
+  final Widget Function(BuildContext context, double shrinkRatio) buildClock;
+
+  const _ClockSliverDelegate({
+    required this.maxExtent,
+    required this.buildClock,
+  });
+
+  @override
+  double get minExtent => 0;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final shrinkRatio = (shrinkOffset / maxExtent).clamp(0.0, 1.0);
+    return SizedBox(
+      height: maxExtent - shrinkOffset,
+      child: buildClock(context, shrinkRatio),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_ClockSliverDelegate old) => true;
 }
 
 // ──────────────────────────────────────────────

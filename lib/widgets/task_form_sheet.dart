@@ -106,13 +106,15 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final fieldFillColor = isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF7F6FD);
     final borderColor = isDark ? const Color(0xFF2A2D42) : const Color(0xFFE8E4FF);
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
         top: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+        bottom: keyboardInset + (keyboardInset > 0 ? 20 : 24 + bottomSafe),
       ),
       decoration: BoxDecoration(
         color: cardBg,

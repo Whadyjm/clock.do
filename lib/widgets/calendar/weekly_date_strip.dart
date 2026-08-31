@@ -61,119 +61,115 @@ class _WeeklyDateStripState extends State<WeeklyDateStrip> {
     final cardBg = Theme.of(context).cardColor;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 82,
-          child: ListView.builder(
-            controller: _scrollCtrl,
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: totalItems,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemBuilder: (context, index) {
-              final dayOffset = index - _rangeDays;
-              final date = today.add(Duration(days: dayOffset));
-              final isSelected = date.year == provider.selectedDate.year &&
-                  date.month == provider.selectedDate.month &&
-                  date.day == provider.selectedDate.day;
-              final isToday = date.year == today.year &&
-                  date.month == today.month &&
-                  date.day == today.day;
-              final categories = provider.categoriesForDate(date);
+    return SizedBox(
+      height: 82,
+      child: ListView.builder(
+        controller: _scrollCtrl,
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: totalItems,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemBuilder: (context, index) {
+          final dayOffset = index - _rangeDays;
+          final date = today.add(Duration(days: dayOffset));
+          final isSelected = date.year == provider.selectedDate.year &&
+              date.month == provider.selectedDate.month &&
+              date.day == provider.selectedDate.day;
+          final isToday = date.year == today.year &&
+              date.month == today.month &&
+              date.day == today.day;
+          final categories = provider.categoriesForDate(date);
 
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  provider.selectDate(date);
-                  _scrollToSelected(animate: true);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
-                  width: 52,
-                  margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF6C5CE7)
-                        : cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: isToday && !isSelected
-                        ? Border.all(color: const Color(0xFF6C5CE7), width: 1.5)
-                        : Border.all(color: isDark ? const Color(0xFF2A2D42) : Colors.transparent),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isSelected
-                            ? const Color(0xFF6C5CE7).withValues(alpha: 0.35)
-                            : (isDark ? Colors.black.withValues(alpha: 0.2) : const Color(0xFF6C5CE7).withValues(alpha: 0.05)),
-                        blurRadius: isSelected ? 12 : 6,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        DateFormat('EEE', 'es').format(date).toUpperCase().replaceAll('.', ''),
-                        style: TextStyle(
-                          color: isSelected
-                              ? Colors.white.withValues(alpha: 0.8)
-                              : const Color(0xFF9E98D4),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${date.day}',
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : textColor,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // Indicadores de categorías / tareas programadas
-                      SizedBox(
-                        height: 5,
-                        child: categories.isEmpty
-                            ? (isToday
-                                ? Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : const Color(0xFF6C5CE7),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  )
-                                : const SizedBox.shrink())
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: categories.take(3).map((cat) {
-                                  return Container(
-                                    width: 4,
-                                    height: 4,
-                                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? Colors.white : cat.color,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              provider.selectDate(date);
+              _scrollToSelected(animate: true);
             },
-          ),
-        ),
-      ],
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              width: 52,
+              margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF6C5CE7)
+                    : cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: isToday && !isSelected
+                    ? Border.all(color: const Color(0xFF6C5CE7), width: 1.5)
+                    : Border.all(color: isDark ? const Color(0xFF2A2D42) : Colors.transparent),
+                boxShadow: [
+                  BoxShadow(
+                    color: isSelected
+                        ? const Color(0xFF6C5CE7).withValues(alpha: 0.35)
+                        : (isDark ? Colors.black.withValues(alpha: 0.2) : const Color(0xFF6C5CE7).withValues(alpha: 0.05)),
+                    blurRadius: isSelected ? 12 : 6,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    DateFormat('EEE', 'es').format(date).toUpperCase().replaceAll('.', ''),
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : const Color(0xFF9E98D4),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${date.day}',
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : textColor,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Indicadores de categorías / tareas programadas
+                  SizedBox(
+                    height: 5,
+                    child: categories.isEmpty
+                        ? (isToday
+                            ? Container(
+                                width: 4,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : const Color(0xFF6C5CE7),
+                                  shape: BoxShape.circle,
+                                ),
+                              )
+                            : const SizedBox.shrink())
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: categories.take(3).map((cat) {
+                              return Container(
+                                width: 4,
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Colors.white : cat.color,
+                                  shape: BoxShape.circle,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
