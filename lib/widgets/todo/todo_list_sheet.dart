@@ -403,10 +403,6 @@ class _TodoListSheetState extends State<TodoListSheet> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF7F6FD),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2A2D42) : const Color(0xFFE8E4FF),
-          width: 1.5,
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -318,7 +318,10 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             // ── Tira semanal ───────────────────────────────
-            const WeeklyDateStrip(),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: const WeeklyDateStrip(),
+            ),
             // ── Reloj colapsable (FUERA del scroll) ────────────
             // AnimatedBuilder escucha el scroll de la lista de tareas
             // y encoge la altura del reloj sin que haya competencia

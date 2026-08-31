@@ -30,6 +30,7 @@ class RadialClockPainter extends CustomPainter {
   final bool isDark;
   final double? gestureStartAngle;
   final double? gestureCurrentAngle;
+  final String? inspectedBlockId;
 
   final OrbitClockColors colors;
 
@@ -40,6 +41,7 @@ class RadialClockPainter extends CustomPainter {
     required this.isDark,
     this.gestureStartAngle,
     this.gestureCurrentAngle,
+    this.inspectedBlockId,
   }) : colors = OrbitClockColors(isDark: isDark);
 
   @override
@@ -202,8 +204,7 @@ class RadialClockPainter extends CustomPainter {
     }
   }
 
-  // ── Arcos de Tareas Estilo Resaltador Suave ───────────────
-
+  // ── Arcos de Tareas Estilo Resaltador Suave con Modo Lupa ──
   void _drawTaskRibbon(
     Canvas canvas,
     Offset center,
@@ -222,22 +223,62 @@ class RadialClockPainter extends CustomPainter {
     final minSweep = (5.0 / 60.0 / total) * 2 * pi;
     if (sweep < minSweep) sweep = minSweep;
 
+    final isInspected = block.id == inspectedBlockId;
     final isCompleted = block.status == TaskStatus.completed;
     final baseColor = block.category.color;
 
-    final ribbonPaint = Paint()
-      ..color = baseColor.withValues(alpha: isCompleted ? (isDark ? 0.2 : 0.25) : (isDark ? 0.8 : 0.65))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = thickness
-      ..strokeCap = StrokeCap.round;
+    if (isInspected) {
+      // 1. Halo luminoso exterior amplificado de la lupa
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweep,
+        false,
+        Paint()
+          ..color = baseColor.withValues(alpha: isDark ? 0.7 : 0.45)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = thickness + 14.0
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweep,
-      false,
-      ribbonPaint,
-    );
+      // 2. Arco ampliado y destacado
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweep,
+        false,
+        Paint()
+          ..color = baseColor.withValues(alpha: isCompleted ? 0.6 : 0.95)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = thickness + 4.0
+          ..strokeCap = StrokeCap.round,
+      );
+
+      // 3. Puntos de precisión en inicio y fin del arco
+      final pStart = RadialMath.polarToCartesian(center, radius, startAngle);
+      final pEnd   = RadialMath.polarToCartesian(center, radius, startAngle + sweep);
+
+      canvas.drawCircle(pStart, 5.0, Paint()..color = Colors.white);
+      canvas.drawCircle(pStart, 3.2, Paint()..color = baseColor);
+
+      canvas.drawCircle(pEnd, 5.0, Paint()..color = Colors.white);
+      canvas.drawCircle(pEnd, 3.2, Paint()..color = baseColor);
+    } else {
+      final ribbonPaint = Paint()
+        ..color = baseColor.withValues(alpha: isCompleted ? (isDark ? 0.2 : 0.25) : (isDark ? 0.8 : 0.65))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweep,
+        false,
+        ribbonPaint,
+      );
+    }
 
     if (isCompleted) {
       final mid = RadialMath.arcMidpoint(center, radius, startAngle, sweep);
@@ -422,6 +463,10 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
   Offset? _center;
   double? _clockRadius;
 
+  // Modo Lupa / Inspección
+  bool _isMagnifierActive = false;
+  TimeBlock? _inspectedBlock;
+
   // Haptic: último "slot de 5 minutos" disparado
   int? _lastHapticSlot;
 
@@ -503,6 +548,14 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Sincronizar bloque inspeccionado si fue modificado o eliminado externamente
+    if (_inspectedBlock != null) {
+      final currentMatch = widget.blocks.where((b) => b.id == _inspectedBlock!.id).firstOrNull;
+      if (currentMatch != _inspectedBlock) {
+        _inspectedBlock = currentMatch;
+      }
+    }
+
     return LayoutBuilder(builder: (ctx, constraints) {
       final size = Size(constraints.maxWidth, constraints.maxHeight);
       _updateGeometry(size);
@@ -515,15 +568,32 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
         ),
         child: GestureDetector(
           onPanStart: (d) {
+            if (_isMagnifierActive) {
+              final block = _blockAt(d.localPosition);
+              if (block != null) {
+                HapticFeedback.selectionClick();
+                setState(() => _inspectedBlock = block);
+              }
+              return;
+            }
             if (!_isOnRing(d.localPosition)) return;
             HapticFeedback.selectionClick();
             final angle = RadialMath.offsetToAngle(d.localPosition, _center!);
             setState(() {
               _gestureStartAngle   = angle;
               _gestureCurrentAngle = angle;
+              _inspectedBlock      = null;
             });
           },
           onPanUpdate: (d) {
+            if (_isMagnifierActive) {
+              final block = _blockAt(d.localPosition);
+              if (block != null && block.id != _inspectedBlock?.id) {
+                HapticFeedback.selectionClick();
+                setState(() => _inspectedBlock = block);
+              }
+              return;
+            }
             if (_gestureStartAngle == null) return;
             final newAngle = RadialMath.offsetToAngle(d.localPosition, _center!);
             final currentH = RadialMath.angleToHour(newAngle, is24h: widget.is24h);
@@ -536,6 +606,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
             setState(() => _gestureCurrentAngle = newAngle);
           },
           onPanEnd: (_) {
+            if (_isMagnifierActive) return;
             if (_gestureStartAngle == null || _gestureCurrentAngle == null) return;
             final sweep = RadialMath.sweepAngle(
                 _gestureStartAngle!, _gestureCurrentAngle!);
@@ -558,11 +629,24 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
           },
           onTapUp: (d) {
             if (_center == null) return;
-            if (!_isOnRing(d.localPosition)) return;
             final block = _blockAt(d.localPosition);
             if (block != null) {
               HapticFeedback.selectionClick();
-              widget.onBlockTap?.call(block.id);
+              // Activa el modo lupa/inspección en el reloj
+              setState(() {
+                if (_inspectedBlock?.id == block.id && !_isMagnifierActive) {
+                  // Si ya estaba ampliado y tocan de nuevo, abrir editor
+                  widget.onBlockTap?.call(block.id);
+                } else {
+                  _inspectedBlock = block;
+                }
+              });
+            } else {
+              // Tocar fuera cierra la lupa
+              if (_inspectedBlock != null) {
+                HapticFeedback.selectionClick();
+                setState(() => _inspectedBlock = null);
+              }
             }
           },
           child: Stack(
@@ -576,16 +660,295 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
                   isDark: isDark,
                   gestureStartAngle: _gestureStartAngle,
                   gestureCurrentAngle: _gestureCurrentAngle,
+                  inspectedBlockId: _inspectedBlock?.id,
                 ),
               ),
-              // Panel flotante de hora durante el gesto
+
+              // Botón flotante para activar/desactivar Modo Lupa
+              Positioned(
+                top: 4,
+                right: 4,
+                child: _buildMagnifierToggle(isDark),
+              ),
+
+              // Panel flotante de hora durante el gesto de creación
               if (_gestureStartAngle != null && _gestureCurrentAngle != null)
                 _buildTimeBubble(context, isDark),
+
+              // Tarjeta de Inspección Magnificada (Modo Lupa)
+              if (_inspectedBlock != null && _gestureStartAngle == null)
+                _buildInspectorCard(context, isDark, _inspectedBlock!),
             ],
           ),
         ),
       );
     });
+  }
+
+  // ── Botón flotante de Modo Lupa ───────────────────────────
+
+  Widget _buildMagnifierToggle(bool isDark) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _isMagnifierActive = !_isMagnifierActive;
+          if (!_isMagnifierActive) {
+            _inspectedBlock = null;
+          } else if (widget.blocks.isNotEmpty && _inspectedBlock == null) {
+            _inspectedBlock = widget.blocks.first;
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: _isMagnifierActive
+              ? const Color(0xFF6C5CE7)
+              : (isDark ? const Color(0xFF1E2235) : Colors.white.withValues(alpha: 0.9)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _isMagnifierActive
+                ? const Color(0xFF6C5CE7)
+                : (isDark ? const Color(0xFF2A2D42) : const Color(0xFFE8E4FF)),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C5CE7).withValues(alpha: _isMagnifierActive ? 0.35 : 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _isMagnifierActive ? Icons.search_rounded : Icons.search_rounded,
+              size: 14,
+              color: _isMagnifierActive ? Colors.white : const Color(0xFF6C5CE7),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Lupa',
+              style: TextStyle(
+                color: _isMagnifierActive ? Colors.white : const Color(0xFF6C5CE7),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Tarjeta de Inspección Magnificada (Modo Lupa) ──────────
+
+  Widget _buildInspectorCard(BuildContext context, bool isDark, TimeBlock block) {
+    final cx = (_center?.dx ?? 0);
+    final cy = (_center?.dy ?? 0);
+    const w = 195.0;
+
+    final startStr = RadialMath.decimalHoursToString(block.startHour);
+    final endStr   = RadialMath.decimalHoursToString(block.endHour);
+    final durMin   = ((block.endHour - block.startHour) * 60).round();
+    final durH     = durMin ~/ 60;
+    final durM     = durMin % 60;
+    final durStr   = durH > 0
+        ? (durM > 0 ? '${durH}h ${durM}m' : '${durH}h')
+        : '${durM}m';
+
+    final bg    = isDark ? const Color(0xFF161826) : Colors.white;
+    final fg    = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final isDone = block.status == TaskStatus.completed;
+
+    return Positioned(
+      left: cx - w / 2,
+      top: cy - 72,
+      width: w,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.85, end: 1.0),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutBack,
+        builder: (_, scale, child) => Transform.scale(
+          scale: scale,
+          child: child,
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: bg.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: block.category.color.withValues(alpha: 0.6),
+              width: 1.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: block.category.color.withValues(alpha: isDark ? 0.3 : 0.18),
+                blurRadius: 22,
+                spreadRadius: 2,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header de la Lupa: Categoría + Botón cerrar
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: block.category.color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(block.category.icon, size: 10, color: block.category.color),
+                        const SizedBox(width: 3),
+                        Text(
+                          block.category.displayName,
+                          style: TextStyle(
+                            color: block.category.color,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // Insignia de modo lupa
+                  const Icon(Icons.search_rounded, size: 12, color: Color(0xFF9E98D4)),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _inspectedBlock = null);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF2A2D42) : const Color(0xFFF0EEFF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 11, color: Color(0xFF9E98D4)),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 5),
+
+              // Título de la tarea
+              Text(
+                block.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  decoration: isDone ? TextDecoration.lineThrough : null,
+                  decorationColor: const Color(0xFF9E98D4),
+                ),
+              ),
+
+              if (block.description != null && block.description!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  block.description!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark ? Colors.white60 : const Color(0xFF9E98D4),
+                    fontSize: 10.5,
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 6),
+
+              // Horario y Duración
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 4,
+                runSpacing: 2,
+                children: [
+                  Text(
+                    '$startStr – $endStr',
+                    style: const TextStyle(
+                      color: Color(0xFF6C5CE7),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      durStr,
+                      style: const TextStyle(
+                        color: Color(0xFF6C5CE7),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // Acciones: Editar botón
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    widget.onBlockTap?.call(block.id);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B7CF6), Color(0xFF6C5CE7)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit_rounded, size: 12, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          'Editar tarea',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildTimeBubble(BuildContext context, bool isDark) {

@@ -1,8 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:clockdo/models/task_category.dart';
+import 'package:clockdo/models/time_block.dart';
 import 'package:clockdo/models/todo_item.dart';
 import 'package:clockdo/providers/clock_provider.dart';
+import 'package:clockdo/widgets/radial_clock_canvas.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -97,6 +100,47 @@ void main() {
       // Clear completed
       provider.clearCompletedTodos();
       expect(provider.todoItems.isEmpty, isTrue);
+    });
+  });
+
+  group('RadialClockCanvas Magnifier (Modo Lupa)', () {
+    testWidgets('toggles magnifier mode and displays magnifier button', (WidgetTester tester) async {
+      final block = TimeBlock.create(
+        title: 'Reunión de Diseño',
+        startHour: 9.0,
+        endHour: 10.5,
+        category: TaskCategory.work,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              height: 300,
+              child: RadialClockCanvas(
+                blocks: [block],
+                currentHour: 9.5,
+                is24h: false,
+                onGestureComplete: (s, e) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Lupa'), findsOneWidget);
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+
+      // Activar lupa
+      await tester.tap(find.text('Lupa'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Debe mostrar la tarjeta de inspección de la tarea
+      expect(find.text('Reunión de Diseño'), findsOneWidget);
+      expect(find.text('Editar tarea'), findsOneWidget);
     });
   });
 }
