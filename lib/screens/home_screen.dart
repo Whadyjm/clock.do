@@ -1,0 +1,894 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../models/time_block.dart';
+import '../providers/clock_provider.dart';
+import '../widgets/radial_clock_canvas.dart';
+import '../widgets/task_form_sheet.dart';
+import '../widgets/calendar/weekly_date_strip.dart';
+import '../widgets/calendar/monthly_calendar_sheet.dart';
+import '../widgets/settings/notification_settings_sheet.dart';
+import '../utils/radial_math.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fabCtrl;
+  late Animation<double> _fabScale;
+  late AnimationController _headerCtrl;
+  late Animation<Offset> _headerSlide;
+  late Animation<double> _headerFade;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // FAB pulsante
+    _fabCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+    _fabScale = Tween(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _fabCtrl, curve: Curves.easeInOut),
+    );
+
+    // Header entrada
+    _headerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+    _headerSlide = Tween(
+      begin: const Offset(0, -0.4),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOutCubic));
+    _headerFade = Tween(begin: 0.0, end: 1.0)
+        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _fabCtrl.dispose();
+    _headerCtrl.dispose();
+    super.dispose();
+  }
+
+  void _openCreateSheet(BuildContext context, {double? startHour, double? endHour, DateTime? date}) {
+    HapticFeedback.mediumImpact();
+    final provider = context.read<ClockProvider>();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: provider,
+        child: TaskFormSheet(
+          suggestedStartHour: startHour,
+          suggestedEndHour: endHour,
+          initialDate: date ?? provider.selectedDate,
+        ),
+      ),
+    );
+  }
+
+  void _openEditSheet(BuildContext context, String blockId) {
+    HapticFeedback.selectionClick();
+    final provider = context.read<ClockProvider>();
+    final block = provider.allBlocks.firstWhere((b) => b.id == blockId);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: provider,
+        child: TaskFormSheet(existingBlock: block),
+      ),
+    );
+  }
+
+  void _openMonthlyCalendar(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    final provider = context.read<ClockProvider>();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: provider,
+        child: const MonthlyCalendarSheet(),
+      ),
+    );
+  }
+
+  void _openNotificationSettings(BuildContext context) {
+    HapticFeedback.selectionClick();
+    final provider = context.read<ClockProvider>();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: provider,
+        child: const NotificationSettingsSheet(),
+      ),
+    );
+  }
+
+  void _openThemeSelector(BuildContext context) {
+    HapticFeedback.selectionClick();
+    final provider = context.read<ClockProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = Theme.of(context).cardColor;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+              blurRadius: 30,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2A2D42) : const Color(0xFFDDD9F5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Text(
+              'Tema de la Aplicación',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildThemeOption(
+              context: context,
+              title: 'Modo Claro',
+              subtitle: 'Diseño brillante y tonos pastel',
+              icon: Icons.light_mode_rounded,
+              mode: ThemeMode.light,
+              isSelected: provider.themeMode == ThemeMode.light,
+            ),
+            const SizedBox(height: 8),
+            _buildThemeOption(
+              context: context,
+              title: 'Modo Oscuro',
+              subtitle: 'Superficies profundas y contrastes vívidos',
+              icon: Icons.dark_mode_rounded,
+              mode: ThemeMode.dark,
+              isSelected: provider.themeMode == ThemeMode.dark,
+            ),
+            const SizedBox(height: 8),
+            _buildThemeOption(
+              context: context,
+              title: 'Seguir Sistema',
+              subtitle: 'Se ajusta automáticamente a tu dispositivo',
+              icon: Icons.brightness_auto_rounded,
+              mode: ThemeMode.system,
+              isSelected: provider.themeMode == ThemeMode.system,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeOption({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required ThemeMode mode,
+    required bool isSelected,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.read<ClockProvider>().setThemeMode(mode);
+        Navigator.of(context).pop();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF6C5CE7).withValues(alpha: 0.15)
+              : (isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF7F6FD)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF6C5CE7) : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF6C5CE7)
+                    : (isDark ? const Color(0xFF2A2D42) : const Color(0xFFE8E4FF)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : const Color(0xFF6C5CE7),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF9E98D4),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF6C5CE7), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            FadeTransition(
+              opacity: _headerFade,
+              child: SlideTransition(
+                position: _headerSlide,
+                child: _buildHeader(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Tira semanal / mensual de selección de días
+            const WeeklyDateStrip(),
+            _buildClockSection(context),
+            _buildTaskList(context),
+          ],
+        ),
+      ),
+      floatingActionButton: _buildFAB(context),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Header
+  // ──────────────────────────────────────────────
+
+  Widget _buildHeader(BuildContext context) {
+    final provider = context.watch<ClockProvider>();
+    final selectedDate = provider.selectedDate;
+    final isToday = provider.isViewingToday;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = Theme.of(context).cardColor;
+    final buttonBg = isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF0EEFF);
+    final timeStr = DateFormat('HH:mm').format(provider.now);
+
+    final rawDateStr = DateFormat('EEEE, d MMMM', 'es').format(selectedDate);
+    final dateStr = rawDateStr[0].toUpperCase() + rawDateStr.substring(1);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0xFF6C5CE7).withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Fecha y hora
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (b) => const LinearGradient(
+                        colors: [Color(0xFF6C5CE7), Color(0xFF00CEC9)],
+                      ).createShader(b),
+                      child: Text(
+                        timeStr,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    if (isToday) _LiveDot(),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isToday ? 'Hoy • $dateStr' : dateStr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isToday ? const Color(0xFF6C5CE7) : const Color(0xFF9E98D4),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Botones de acción del header (Recordatorios, Tema, Calendario, Toggle 12/24H)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Botón de Recordatorios / Notificaciones
+              _buildHeaderIconButton(
+                buttonBg: buttonBg,
+                tooltip: provider.notificationsEnabled
+                    ? 'Recordatorios: ${provider.reminderMinutesBefore == 0 ? "Al comenzar" : "${provider.reminderMinutesBefore}m antes"}'
+                    : 'Recordatorios desactivados',
+                icon: provider.notificationsEnabled
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_off_rounded,
+                onTap: () => _openNotificationSettings(context),
+              ),
+              const SizedBox(width: 5),
+
+              // Selector de Modo de Tema
+              _buildHeaderIconButton(
+                buttonBg: buttonBg,
+                tooltip: 'Tema: ${provider.themeModeName}',
+                icon: provider.themeModeIcon,
+                onTap: () => _openThemeSelector(context),
+              ),
+              const SizedBox(width: 5),
+
+              // Botón de Calendario Mensual
+              _buildHeaderIconButton(
+                buttonBg: buttonBg,
+                tooltip: 'Calendario Mensual',
+                icon: Icons.calendar_month_rounded,
+                onTap: () => _openMonthlyCalendar(context),
+              ),
+              const SizedBox(width: 5),
+
+              // Toggle 12h/24h
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  provider.toggleClockMode();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: provider.is24h
+                        ? const Color(0xFF6C5CE7)
+                        : buttonBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    provider.is24h ? '24H' : '12H',
+                    style: TextStyle(
+                      color: provider.is24h
+                          ? Colors.white
+                          : const Color(0xFF6C5CE7),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderIconButton({
+    required Color buttonBg,
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: buttonBg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: const Color(0xFF6C5CE7), size: 17),
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Sección del reloj
+  // ──────────────────────────────────────────────
+
+  Widget _buildClockSection(BuildContext context) {
+    final provider = context.watch<ClockProvider>();
+    final dayBlocks = provider.selectedDateBlocks;
+
+    return Expanded(
+      flex: 6,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: RadialClockCanvas(
+            key: ValueKey('${provider.selectedDate.toIso8601String()}_${provider.is24h}'),
+            blocks: dayBlocks,
+            currentHour: provider.currentHourView,
+            is24h: provider.is24h,
+            onGestureComplete: (s, e) => _openCreateSheet(
+              context,
+              startHour: s,
+              endHour: e,
+              date: provider.selectedDate,
+            ),
+            onBlockTap: (id) => _openEditSheet(context, id),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Lista de tareas
+  // ──────────────────────────────────────────────
+
+  Widget _buildTaskList(BuildContext context) {
+    final provider = context.watch<ClockProvider>();
+    final blocks = provider.selectedDateBlocks;
+    final isToday = provider.isViewingToday;
+    final dateLabel = isToday
+        ? 'HOY'
+        : DateFormat('d MMM', 'es').format(provider.selectedDate).toUpperCase();
+
+    if (blocks.isEmpty) {
+      return Expanded(
+        flex: 3,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.8, end: 1.0),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.elasticOut,
+                builder: (_, v, child) => Transform.scale(scale: v, child: child),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.touch_app_rounded,
+                    color: Color(0xFF6C5CE7),
+                    size: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isToday ? 'No tienes tareas hoy' : 'Sin tareas para este día',
+                style: const TextStyle(
+                  color: Color(0xFF9E98D4),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Toca y arrastra en el reloj para agendar',
+                style: TextStyle(
+                  color: Color(0xFFBBB5E8),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Expanded(
+      flex: 3,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+            child: Row(
+              children: [
+                Text(
+                  dateLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF9E98D4),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6C5CE7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${blocks.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              itemCount: blocks.length,
+              itemBuilder: (ctx, i) {
+                return TweenAnimationBuilder<double>(
+                  key: ValueKey(blocks[i].id),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: Duration(milliseconds: 250 + i * 50),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, v, child) => Opacity(
+                    opacity: v,
+                    child: Transform.translate(
+                      offset: Offset(0, 20 * (1 - v)),
+                      child: child,
+                    ),
+                  ),
+                  child: _buildTaskTile(ctx, blocks[i]),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskTile(BuildContext context, TimeBlock block) {
+    final provider = context.read<ClockProvider>();
+    final isCompleted  = block.status == TaskStatus.completed;
+    final isInProgress = block.status == TaskStatus.inProgress;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = Theme.of(context).cardColor;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    return _PressableTile(
+      onTap: () => _openEditSheet(context, block.id),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: isInProgress
+              ? Border.all(color: block.category.color.withValues(alpha: 0.5), width: 1.5)
+              : (isDark ? Border.all(color: const Color(0xFF2A2D42), width: 1) : null),
+          boxShadow: [
+            BoxShadow(
+              color: block.category.color.withValues(alpha: isInProgress ? 0.15 : (isDark ? 0.02 : 0.06)),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Pill de color
+            Container(
+              width: 4,
+              height: 38,
+              decoration: BoxDecoration(
+                color: isCompleted
+                    ? block.category.color.withValues(alpha: 0.3)
+                    : block.category.color,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Icono de categoría
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: block.category.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                block.category.icon,
+                size: 16,
+                color: isCompleted
+                    ? block.category.color.withValues(alpha: 0.4)
+                    : block.category.color,
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    block.title,
+                    style: TextStyle(
+                      color: isCompleted
+                          ? (isDark ? const Color(0xFF6B7194) : const Color(0xFFBBB5E8))
+                          : textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      decoration: isCompleted ? TextDecoration.lineThrough : null,
+                      decorationColor: isDark ? const Color(0xFF6B7194) : const Color(0xFFBBB5E8),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${RadialMath.decimalHoursToString(block.startHour)} – '
+                    '${RadialMath.decimalHoursToString(block.endHour)}',
+                    style: const TextStyle(
+                      color: Color(0xFF9E98D4),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Chip de estado (tap para ciclar)
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                provider.toggleStatus(block.id);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _statusColor(block.status).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _statusIcon(block.status),
+                      size: 11,
+                      color: _statusColor(block.status),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      block.status.displayName,
+                      style: TextStyle(
+                        color: _statusColor(block.status),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(TaskStatus s) => switch (s) {
+    TaskStatus.pending    => const Color(0xFF9E98D4),
+    TaskStatus.inProgress => const Color(0xFF00CEC9),
+    TaskStatus.completed  => const Color(0xFF00B894),
+  };
+
+  IconData _statusIcon(TaskStatus s) => switch (s) {
+    TaskStatus.pending    => Icons.radio_button_unchecked_rounded,
+    TaskStatus.inProgress => Icons.timelapse_rounded,
+    TaskStatus.completed  => Icons.check_circle_rounded,
+  };
+
+  // ──────────────────────────────────────────────
+  // FAB
+  // ──────────────────────────────────────────────
+
+  Widget _buildFAB(BuildContext context) {
+    return ScaleTransition(
+      scale: _fabScale,
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8B7CF6), Color(0xFF6C5CE7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C5CE7).withValues(alpha: 0.45),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => _openCreateSheet(context),
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Widgets auxiliares de microinteracción
+// ──────────────────────────────────────────────
+
+/// Punto verde pulsante de "en vivo"
+class _LiveDot extends StatefulWidget {
+  @override
+  State<_LiveDot> createState() => _LiveDotState();
+}
+
+class _LiveDotState extends State<_LiveDot> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 1))
+      ..repeat(reverse: true);
+    _anim = Tween(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _anim,
+    builder: (_, __) => Container(
+      width: 7,
+      height: 7,
+      decoration: BoxDecoration(
+        color: Color.lerp(
+          const Color(0xFF00CEC9),
+          const Color(0xFF00B894),
+          _anim.value,
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00CEC9).withValues(alpha: _anim.value * 0.6),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Tile con efecto de escala al presionar
+class _PressableTile extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _PressableTile({required this.child, required this.onTap});
+
+  @override
+  State<_PressableTile> createState() => _PressableTileState();
+}
+
+class _PressableTileState extends State<_PressableTile> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
