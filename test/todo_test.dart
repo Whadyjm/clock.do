@@ -101,6 +101,31 @@ void main() {
       provider.clearCompletedTodos();
       expect(provider.todoItems.isEmpty, isTrue);
     });
+
+    test('toggleStatus cycles through statuses and persists', () async {
+      final provider = ClockProvider();
+      final block = TimeBlock.create(
+        title: 'Bloque de prueba',
+        startHour: 8.0,
+        endHour: 9.0,
+        status: TaskStatus.pending,
+      );
+
+      provider.addBlock(block);
+      expect(provider.allBlocks.first.status, TaskStatus.pending);
+
+      // Toggle 1: pending -> inProgress
+      provider.toggleStatus(block.id);
+      expect(provider.allBlocks.first.status, TaskStatus.inProgress);
+
+      // Toggle 2: inProgress -> completed
+      provider.toggleStatus(block.id);
+      expect(provider.allBlocks.first.status, TaskStatus.completed);
+
+      // Toggle 3: completed -> pending
+      provider.toggleStatus(block.id);
+      expect(provider.allBlocks.first.status, TaskStatus.pending);
+    });
   });
 
   group('RadialClockCanvas Magnifier (Modo Lupa)', () {

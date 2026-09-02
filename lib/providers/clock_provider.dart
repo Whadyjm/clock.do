@@ -112,50 +112,8 @@ class ClockProvider extends ChangeNotifier {
   void _startClock() {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _now = DateTime.now();
-      _autoUpdateStatuses();
       notifyListeners();
     });
-  }
-
-  // ──────────────────────────────────────────────
-  // Actualización automática de estados por hora
-  // ──────────────────────────────────────────────
-
-  /// Actualiza el estado de cada tarea de HOY según la hora actual:
-  /// pending → inProgress → completed.
-  void _autoUpdateStatuses() {
-    final todayNormalized = normalizeDate(_now);
-    final currentH =
-        _now.hour + _now.minute / 60.0 + _now.second / 3600.0;
-
-    bool changed = false;
-    for (var i = 0; i < _blocks.length; i++) {
-      final b = _blocks[i];
-      // Solo bloques del día de hoy
-      if (!b.isOnDay(todayNormalized)) continue;
-
-      final TaskStatus autoStatus;
-      if (currentH < b.startHour) {
-        autoStatus = TaskStatus.pending;
-      } else if (currentH < b.endHour) {
-        autoStatus = TaskStatus.inProgress;
-      } else {
-        autoStatus = TaskStatus.completed;
-      }
-
-      if (b.status != autoStatus) {
-        _blocks[i] = b.copyWith(status: autoStatus);
-        // Cancelar notificación al completarse automáticamente
-        if (autoStatus == TaskStatus.completed) {
-          _notifService.cancelTaskReminder(b.id);
-        }
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      _saveToStorage();
-    }
   }
 
   // ──────────────────────────────────────────────
