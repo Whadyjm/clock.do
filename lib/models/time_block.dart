@@ -137,6 +137,18 @@ class TimeBlock {
         'ringIndex': ringIndex,
       };
 
+  /// Serializa a Map en formato Postgres snake_case para Supabase.
+  Map<String, dynamic> toSupabaseMap() => {
+        'id': id,
+        'title': title,
+        'description': description,
+        'date': date.toIso8601String().split('T').first,
+        'start_hour': startHour,
+        'end_hour': endHour,
+        'category': category.index,
+        'status': status.index,
+      };
+
   /// Deserializa desde JSON.
   factory TimeBlock.fromJson(Map<String, dynamic> json) {
     return TimeBlock(
@@ -151,6 +163,25 @@ class TimeBlock {
       category: TaskCategory.values[json['category'] as int],
       status: TaskStatus.values[json['status'] as int],
       ringIndex: json['ringIndex'] as int? ?? 0,
+    );
+  }
+
+  /// Deserializa desde registro Supabase.
+  factory TimeBlock.fromSupabaseMap(Map<String, dynamic> map) {
+    return TimeBlock(
+      id: map['id'] as String,
+      title: map['title'] as String,
+      description: map['description'] as String?,
+      date: map['date'] != null
+          ? DateTime.tryParse(map['date'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      startHour: (map['start_hour'] as num? ?? map['startHour'] as num).toDouble(),
+      endHour: (map['end_hour'] as num? ?? map['endHour'] as num).toDouble(),
+      category: TaskCategory.values[
+          (map['category'] as int? ?? 0).clamp(0, TaskCategory.values.length - 1)],
+      status: TaskStatus.values[
+          (map['status'] as int? ?? 0).clamp(0, TaskStatus.values.length - 1)],
+      ringIndex: 0,
     );
   }
 
