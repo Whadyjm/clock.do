@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'services/notification_service.dart';
 import 'services/supabase_service.dart';
 import 'providers/clock_provider.dart';
 import 'screens/home_screen.dart';
@@ -11,7 +12,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es', null);
   
-  // Inicialización de Supabase (si las credenciales están presentes)
+  // Inicialización de servicios de notificaciones y Supabase
+  await NotificationService().init();
   await SupabaseService().initialize();
 
   // Orientación vertical

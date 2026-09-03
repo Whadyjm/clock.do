@@ -111,8 +111,6 @@ class ClockProvider extends ChangeNotifier {
   ClockProvider() {
     _startClock();
     _initAndLoad();
-    _initNotifications();
-    _loadFromStorage();
     _initSupabaseListener();
   }
 

@@ -419,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(24),
@@ -439,26 +439,30 @@ class _HomeScreenState extends State<HomeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ShaderMask(
-                      shaderCallback: (b) => const LinearGradient(
-                        colors: [Color(0xFF6C5CE7), Color(0xFF00CEC9)],
-                      ).createShader(b),
-                      child: Text(
-                        timeStr,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -1.0,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ShaderMask(
+                        shaderCallback: (b) => const LinearGradient(
+                          colors: [Color(0xFF6C5CE7), Color(0xFF00CEC9)],
+                        ).createShader(b),
+                        child: Text(
+                          timeStr,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.8,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (isToday) _LiveDot(),
-                  ],
+                      const SizedBox(width: 5),
+                      if (isToday) _LiveDot(),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -467,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen>
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isToday ? const Color(0xFF6C5CE7) : const Color(0xFF9E98D4),
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -475,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
 
           // Botones de acción del header (Cuenta/Cloud, ToDo, Recordatorios, Tema, Calendario, Toggle 12/24H)
           Row(
@@ -497,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen>
                     : const Color(0xFF6C5CE7),
                 onTap: () => _openAuthSheet(context),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
 
               // Botón de Tareas ToDo (Backlog)
               _buildHeaderIconButton(
@@ -509,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen>
                 badgeCount: provider.pendingTodoCount,
                 onTap: () => _openTodoListSheet(context),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
 
               // Botón de Recordatorios / Notificaciones
               _buildHeaderIconButton(
@@ -522,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen>
                     : Icons.notifications_off_rounded,
                 onTap: () => _openNotificationSettings(context),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
 
               // Selector de Modo de Tema
               _buildHeaderIconButton(
@@ -531,7 +535,7 @@ class _HomeScreenState extends State<HomeScreen>
                 icon: provider.themeModeIcon,
                 onTap: () => _openThemeSelector(context),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
 
               // Botón de Calendario Mensual
               _buildHeaderIconButton(
@@ -540,7 +544,7 @@ class _HomeScreenState extends State<HomeScreen>
                 icon: Icons.calendar_month_rounded,
                 onTap: () => _openMonthlyCalendar(context),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
 
               // Toggle 12h/24h
               GestureDetector(
@@ -551,12 +555,12 @@ class _HomeScreenState extends State<HomeScreen>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
                   decoration: BoxDecoration(
                     color: provider.is24h
                         ? const Color(0xFF6C5CE7)
                         : buttonBg,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     provider.is24h ? '24H' : '12H',
@@ -564,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen>
                       color: provider.is24h
                           ? Colors.white
                           : const Color(0xFF6C5CE7),
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -590,17 +594,17 @@ class _HomeScreenState extends State<HomeScreen>
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 34,
-          height: 34,
+          width: 31,
+          height: 31,
           decoration: BoxDecoration(
             color: buttonBg,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              Icon(icon, color: iconColor ?? const Color(0xFF6C5CE7), size: 17),
+              Icon(icon, color: iconColor ?? const Color(0xFF6C5CE7), size: 16),
               if (badgeCount != null && badgeCount > 0)
                 Positioned(
                   top: -2,
