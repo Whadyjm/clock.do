@@ -69,6 +69,17 @@ class TodoItem {
         'completedAt': completedAt?.toIso8601String(),
       };
 
+  /// Serializa a Map en formato Postgres snake_case para Supabase.
+  Map<String, dynamic> toSupabaseMap() => {
+        'id': id,
+        'title': title,
+        'description': description,
+        'category': category.index,
+        'is_completed': isCompleted,
+        'created_at': createdAt.toIso8601String(),
+        'completed_at': completedAt?.toIso8601String(),
+      };
+
   /// Deserializa desde JSON.
   factory TodoItem.fromJson(Map<String, dynamic> json) {
     return TodoItem(
@@ -85,6 +96,29 @@ class TodoItem {
       completedAt: json['completedAt'] != null
           ? DateTime.tryParse(json['completedAt'] as String)
           : null,
+    );
+  }
+
+  /// Deserializa desde registro Supabase.
+  factory TodoItem.fromSupabaseMap(Map<String, dynamic> map) {
+    return TodoItem(
+      id: map['id'] as String,
+      title: map['title'] as String,
+      description: map['description'] as String?,
+      category: map['category'] != null && map['category'] is int
+          ? TaskCategory.values[(map['category'] as int).clamp(0, TaskCategory.values.length - 1)]
+          : TaskCategory.none,
+      isCompleted: map['is_completed'] as bool? ?? map['isCompleted'] as bool? ?? false,
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()
+          : (map['createdAt'] != null
+              ? DateTime.tryParse(map['createdAt'] as String) ?? DateTime.now()
+              : DateTime.now()),
+      completedAt: map['completed_at'] != null
+          ? DateTime.tryParse(map['completed_at'] as String)
+          : (map['completedAt'] != null
+              ? DateTime.tryParse(map['completedAt'] as String)
+              : null),
     );
   }
 

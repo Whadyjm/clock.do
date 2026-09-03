@@ -6,6 +6,7 @@ import '../models/time_block.dart';
 import '../models/task_category.dart';
 import '../models/todo_item.dart';
 import '../services/notification_service.dart';
+import '../services/supabase_service.dart';
 
 const _kStorageKey = 'clockdo_tasks';
 const _kTodoStorageKey = 'clockdo_todos';
@@ -13,7 +14,7 @@ const _kThemeStorageKey = 'clockdo_theme_mode';
 const _kReminderMinutesKey = 'clockdo_reminder_minutes';
 const _kNotifEnabledKey = 'clockdo_notif_enabled';
 
-/// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario y tareas ToDo.
+/// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario, tareas ToDo y sincronización Supabase.
 class ClockProvider extends ChangeNotifier {
   final List<TimeBlock> _blocks = [];
   final List<TodoItem> _todoItems = [];
@@ -22,6 +23,17 @@ class ClockProvider extends ChangeNotifier {
   DateTime _now = DateTime.now();
   DateTime _selectedDate = normalizeDate(DateTime.now());
   Timer? _clockTimer;
+  StreamSubscription? _authSub;
+
+  // ──────────────────────────────────────────────
+  // Configuración de Supabase / Cloud Sync
+  // ──────────────────────────────────────────────
+  final SupabaseService _supabase = SupabaseService();
+  bool _isCloudSyncing = false;
+
+  bool get isCloudSyncing => _isCloudSyncing;
+  bool get isUserLoggedIn => _supabase.isAuthenticated;
+  String? get userEmail => _supabase.currentUser?.email;
 
   // ──────────────────────────────────────────────
   // Configuración Global de Notificaciones
@@ -99,6 +111,9 @@ class ClockProvider extends ChangeNotifier {
   ClockProvider() {
     _startClock();
     _initAndLoad();
+    _initNotifications();
+    _loadFromStorage();
+    _initSupabaseListener();
   }
 
   /// Inicializa notificaciones y luego carga datos en orden garantizado.
@@ -114,6 +129,22 @@ class ClockProvider extends ChangeNotifier {
     _notifService.requestPermissions().then((granted) {
       debugPrint('[ClockProvider] Notification permission granted: $granted');
     });
+  }
+
+  /// Escucha cambios de sesión en Supabase y sincroniza
+  void _initSupabaseListener() {
+    _authSub = _supabase.authStateChanges?.listen((data) {
+      if (data.session != null) {
+        syncWithCloud();
+      } else {
+        notifyListeners();
+      }
+    });
+
+    // Si ya está autenticado al iniciar la app, sincronizar
+    if (_supabase.isAuthenticated) {
+      syncWithCloud();
+    }
   }
 
 
@@ -254,6 +285,74 @@ class ClockProvider extends ChangeNotifier {
   }
 
   // ──────────────────────────────────────────────
+  // Sincronización con Supabase (Nube)
+  // ──────────────────────────────────────────────
+
+  /// Sincroniza bloques y tareas ToDo con Supabase.
+  Future<void> syncWithCloud() async {
+    if (!_supabase.isAuthenticated || _isCloudSyncing) return;
+
+    _isCloudSyncing = true;
+    notifyListeners();
+
+    try {
+      // 1. Sincronizar bloques de tiempo
+      final cloudBlocks = await _supabase.fetchTimeBlocks();
+      
+      // Combinar bloques de nube y locales
+      final blockMap = <String, TimeBlock>{};
+      for (final b in _blocks) {
+        blockMap[b.id] = b;
+      }
+      for (final b in cloudBlocks) {
+        blockMap[b.id] = b;
+      }
+
+      // Si teníamos bloques locales que no estaban en la nube, subirlos
+      final cloudIds = cloudBlocks.map((b) => b.id).toSet();
+      for (final localBlock in _blocks) {
+        if (!cloudIds.contains(localBlock.id)) {
+          await _supabase.upsertTimeBlock(localBlock);
+        }
+      }
+
+      _blocks.clear();
+      _blocks.addAll(blockMap.values);
+      _recalculateAllRings();
+      await _saveToStorage();
+      _rescheduleAllNotifications();
+
+      // 2. Sincronizar tareas ToDo
+      final cloudTodos = await _supabase.fetchTodos();
+      final todoMap = <String, TodoItem>{};
+      for (final t in _todoItems) {
+        todoMap[t.id] = t;
+      }
+      for (final t in cloudTodos) {
+        todoMap[t.id] = t;
+      }
+
+      // Subir tareas locales que no estaban en la nube
+      final cloudTodoIds = cloudTodos.map((t) => t.id).toSet();
+      for (final localTodo in _todoItems) {
+        if (!cloudTodoIds.contains(localTodo.id)) {
+          await _supabase.upsertTodo(localTodo);
+        }
+      }
+
+      _todoItems.clear();
+      _todoItems.addAll(todoMap.values);
+      _todoItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      await _saveTodosToStorage();
+    } catch (e) {
+      debugPrint('[ClockProvider] Error al sincronizar con la nube: $e');
+    } finally {
+      _isCloudSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  // ──────────────────────────────────────────────
   // CRUD de bloques
   // ──────────────────────────────────────────────
 
@@ -261,6 +360,7 @@ class ClockProvider extends ChangeNotifier {
     _blocks.add(block);
     _recalculateAllRings();
     _saveToStorage();
+    _supabase.upsertTimeBlock(block);
     _notifService.scheduleTaskReminder(
       block: block,
       minutesBefore: _reminderMinutesBefore,
@@ -275,6 +375,7 @@ class ClockProvider extends ChangeNotifier {
       _blocks[idx] = updated;
       _recalculateAllRings();
       _saveToStorage();
+      _supabase.upsertTimeBlock(updated);
       _notifService.scheduleTaskReminder(
         block: updated,
         minutesBefore: _reminderMinutesBefore,
@@ -288,6 +389,7 @@ class ClockProvider extends ChangeNotifier {
     _blocks.removeWhere((b) => b.id == id);
     _recalculateAllRings();
     _saveToStorage();
+    _supabase.deleteTimeBlock(id);
     _notifService.cancelTaskReminder(id);
     notifyListeners();
   }
@@ -301,6 +403,7 @@ class ClockProvider extends ChangeNotifier {
     final updated = block.copyWith(status: nextStatus);
     _blocks[idx] = updated;
     _saveToStorage();
+    _supabase.upsertTimeBlock(updated);
 
     if (nextStatus == TaskStatus.completed) {
       _notifService.cancelTaskReminder(id);
@@ -321,6 +424,7 @@ class ClockProvider extends ChangeNotifier {
   void addTodo(TodoItem item) {
     _todoItems.insert(0, item); // Las más recientes arriba
     _saveTodosToStorage();
+    _supabase.upsertTodo(item);
     notifyListeners();
   }
 
@@ -329,6 +433,7 @@ class ClockProvider extends ChangeNotifier {
     if (idx != -1) {
       _todoItems[idx] = updated;
       _saveTodosToStorage();
+      _supabase.upsertTodo(updated);
       notifyListeners();
     }
   }
@@ -338,24 +443,31 @@ class ClockProvider extends ChangeNotifier {
     if (idx == -1) return;
     final item = _todoItems[idx];
     final nextCompleted = !item.isCompleted;
-    _todoItems[idx] = item.copyWith(
+    final updated = item.copyWith(
       isCompleted: nextCompleted,
       completedAt: nextCompleted ? DateTime.now() : null,
       clearCompletedAt: !nextCompleted,
     );
+    _todoItems[idx] = updated;
     _saveTodosToStorage();
+    _supabase.upsertTodo(updated);
     notifyListeners();
   }
 
   void deleteTodo(String id) {
     _todoItems.removeWhere((t) => t.id == id);
     _saveTodosToStorage();
+    _supabase.deleteTodo(id);
     notifyListeners();
   }
 
   void clearCompletedTodos() {
+    final completed = _todoItems.where((t) => t.isCompleted).toList();
     _todoItems.removeWhere((t) => t.isCompleted);
     _saveTodosToStorage();
+    for (final item in completed) {
+      _supabase.deleteTodo(item.id);
+    }
     notifyListeners();
   }
 
@@ -382,11 +494,13 @@ class ClockProvider extends ChangeNotifier {
     addBlock(block);
 
     if (markTodoCompleted) {
-      _todoItems[idx] = todo.copyWith(
+      final updatedTodo = todo.copyWith(
         isCompleted: true,
         completedAt: DateTime.now(),
       );
+      _todoItems[idx] = updatedTodo;
       _saveTodosToStorage();
+      _supabase.upsertTodo(updatedTodo);
     }
     notifyListeners();
   }
@@ -512,6 +626,7 @@ class ClockProvider extends ChangeNotifier {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _authSub?.cancel();
     super.dispose();
   }
 }

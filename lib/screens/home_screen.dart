@@ -12,6 +12,7 @@ import '../widgets/calendar/weekly_date_strip.dart';
 import '../widgets/calendar/monthly_calendar_sheet.dart';
 import '../widgets/settings/notification_settings_sheet.dart';
 import '../widgets/todo/todo_list_sheet.dart';
+import '../widgets/auth/auth_sheet.dart';
 import '../utils/radial_math.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -166,6 +167,21 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (_) => ChangeNotifierProvider.value(
         value: provider,
         child: const NotificationSettingsSheet(),
+      ),
+    );
+  }
+
+  void _openAuthSheet(BuildContext ctx) {
+    if (!mounted) return;
+    HapticFeedback.selectionClick();
+    final provider = context.read<ClockProvider>();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: provider,
+        child: const AuthSheet(),
       ),
     );
   }
@@ -461,10 +477,28 @@ class _HomeScreenState extends State<HomeScreen>
 
           const SizedBox(width: 8),
 
-          // Botones de acción del header (ToDo, Recordatorios, Tema, Calendario, Toggle 12/24H)
+          // Botones de acción del header (Cuenta/Cloud, ToDo, Recordatorios, Tema, Calendario, Toggle 12/24H)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Botón de Perfil / Nube Supabase
+              _buildHeaderIconButton(
+                buttonBg: buttonBg,
+                tooltip: provider.isUserLoggedIn
+                    ? 'Cuenta: ${provider.userEmail ?? "Conectado"}'
+                    : 'Iniciar Sesión / Nube',
+                icon: provider.isUserLoggedIn
+                    ? (provider.isCloudSyncing
+                        ? Icons.sync_rounded
+                        : Icons.cloud_done_rounded)
+                    : Icons.cloud_outlined,
+                iconColor: provider.isUserLoggedIn
+                    ? const Color(0xFF00CEC9)
+                    : const Color(0xFF6C5CE7),
+                onTap: () => _openAuthSheet(context),
+              ),
+              const SizedBox(width: 5),
+
               // Botón de Tareas ToDo (Backlog)
               _buildHeaderIconButton(
                 buttonBg: buttonBg,
@@ -548,6 +582,7 @@ class _HomeScreenState extends State<HomeScreen>
     required String tooltip,
     required IconData icon,
     required VoidCallback onTap,
+    Color? iconColor,
     int? badgeCount,
   }) {
     return Tooltip(
@@ -565,7 +600,7 @@ class _HomeScreenState extends State<HomeScreen>
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              Icon(icon, color: const Color(0xFF6C5CE7), size: 17),
+              Icon(icon, color: iconColor ?? const Color(0xFF6C5CE7), size: 17),
               if (badgeCount != null && badgeCount > 0)
                 Positioned(
                   top: -2,
@@ -963,62 +998,6 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
-}
-
-// ──────────────────────────────────────────────
-// Delegate para la tira semanal sticky
-// ──────────────────────────────────────────────
-
-class _StickyWeeklyStripDelegate extends SliverPersistentHeaderDelegate {
-  @override
-  double get minExtent => 98;
-  @override
-  double get maxExtent => 98;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    return Container(
-      color: bgColor,
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: const WeeklyDateStrip(),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_StickyWeeklyStripDelegate old) => false;
-}
-
-// ──────────────────────────────────────────────
-// Delegate para el reloj colapsable
-// ──────────────────────────────────────────────
-
-class _ClockSliverDelegate extends SliverPersistentHeaderDelegate {
-  @override
-  final double maxExtent;
-  final Widget Function(BuildContext context, double shrinkRatio) buildClock;
-
-  const _ClockSliverDelegate({
-    required this.maxExtent,
-    required this.buildClock,
-  });
-
-  @override
-  double get minExtent => 0;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final shrinkRatio = (shrinkOffset / maxExtent).clamp(0.0, 1.0);
-    return SizedBox(
-      height: maxExtent - shrinkOffset,
-      child: buildClock(context, shrinkRatio),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_ClockSliverDelegate old) => true;
 }
 
 // ──────────────────────────────────────────────
