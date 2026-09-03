@@ -98,14 +98,22 @@ class ClockProvider extends ChangeNotifier {
 
   ClockProvider() {
     _startClock();
-    _initNotifications();
-    _loadFromStorage();
+    _initAndLoad();
   }
 
-  /// Inicializa el servicio de notificaciones y solicita permisos
+  /// Inicializa notificaciones y luego carga datos en orden garantizado.
+  Future<void> _initAndLoad() async {
+    await _initNotifications();
+    await _loadFromStorage();
+  }
+
+  /// Inicializa el servicio de notificaciones y solicita permisos.
   Future<void> _initNotifications() async {
     await _notifService.init();
-    await _notifService.requestPermissions();
+    // Solicitar permisos de forma no-bloqueante (el usuario puede rechazar)
+    _notifService.requestPermissions().then((granted) {
+      debugPrint('[ClockProvider] Notification permission granted: $granted');
+    });
   }
 
 

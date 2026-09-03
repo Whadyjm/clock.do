@@ -224,18 +224,33 @@ class NotificationService {
       debugPrint('[ClockDo Notif] Scheduling notification #$id for "${block.title}" '
           'at $scheduledTz (task starts at $taskStart, reminder $minutesBefore min before)');
 
-      await _plugin.zonedSchedule(
-        id,
-        '⏰ ${block.title}',
-        '${block.category.displayName} • $timingMessage',
-        scheduledTz,
-        details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
-
-      debugPrint('[ClockDo Notif] ✅ Successfully scheduled notification #$id');
+      // Intentar primero con alarma exacta; si falla (permiso denegado), usar inexacta
+      try {
+        await _plugin.zonedSchedule(
+          id,
+          '⏰ ${block.title}',
+          '${block.category.displayName} • $timingMessage',
+          scheduledTz,
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+        debugPrint('[ClockDo Notif] ✅ Scheduled (exact) notification #$id');
+      } catch (exactError) {
+        debugPrint('[ClockDo Notif] ⚠️ Exact alarm failed, falling back to inexact: $exactError');
+        await _plugin.zonedSchedule(
+          id,
+          '⏰ ${block.title}',
+          '${block.category.displayName} • $timingMessage',
+          scheduledTz,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+        debugPrint('[ClockDo Notif] ✅ Scheduled (inexact fallback) notification #$id');
+      }
     } catch (e) {
       debugPrint('[ClockDo Notif] ❌ ERROR scheduling notification for "${block.title}": $e');
     }

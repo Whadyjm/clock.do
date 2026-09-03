@@ -25,8 +25,8 @@ android {
         applicationId = "com.example.clockdo"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 23       // Mínimo para alarmas exactas (API 23+)
+        targetSdk = 34    // Requerido para SCHEDULE_EXACT_ALARM en Android 12+
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
