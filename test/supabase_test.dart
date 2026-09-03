@@ -10,8 +10,8 @@ void main() {
 
   group('Supabase Config & Service Initialization', () {
     test('SupabaseConfig correctly identifies configuration state', () {
-      // With default placeholder values, isConfigured is false
-      expect(SupabaseConfig.isConfigured, isFalse);
+      // With real credentials configured, isConfigured is true
+      expect(SupabaseConfig.isConfigured, isTrue);
     });
 
     test('SupabaseService handles unconfigured state gracefully', () async {
