@@ -640,7 +640,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
                 onLongPress: !cat.isDefault
                     ? () async {
                         final updated = await CategoryCreatorDialog.show(context, category: cat);
-                        if (context.mounted) {
+                        if (mounted) {
                           final prov = context.read<ClockProvider>();
                           if (!prov.allCategories.any((c) => c.id == _selectedCategoryFilter?.id)) {
                             setState(() => _selectedCategoryFilter = null);

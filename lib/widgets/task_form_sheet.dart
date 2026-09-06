@@ -534,7 +534,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                 ? () async {
                     HapticFeedback.heavyImpact();
                     final updated = await CategoryCreatorDialog.show(context, category: cat);
-                    if (context.mounted) {
+                    if (mounted) {
                       final prov = context.read<ClockProvider>();
                       if (!prov.allCategories.any((c) => c.id == _selectedCategory.id)) {
                         setState(() => _selectedCategory = TaskCategory.none);
@@ -593,7 +593,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
           onTap: () async {
             HapticFeedback.selectionClick();
             final created = await CategoryCreatorDialog.show(context);
-            if (created != null && context.mounted) {
+            if (created != null && mounted) {
               context.read<ClockProvider>().addCustomCategory(created);
               setState(() => _selectedCategory = created);
             }

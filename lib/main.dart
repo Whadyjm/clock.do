@@ -6,7 +6,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'services/notification_service.dart';
 import 'services/supabase_service.dart';
 import 'providers/clock_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
@@ -18,16 +20,22 @@ void main() async {
   await NotificationService().init();
   await SupabaseService().initialize();
 
+  // Verificar si ya completó el onboarding
+  final prefs = await SharedPreferences.getInstance();
+  final bool showOnboarding = !(prefs.getBool('clockdo_onboarding_completed') ?? false);
+
   // Orientación vertical
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const ClockDoApp());
+  runApp(ClockDoApp(showOnboarding: showOnboarding));
 }
 
 class ClockDoApp extends StatelessWidget {
-  const ClockDoApp({super.key});
+  final bool showOnboarding;
+
+  const ClockDoApp({super.key, this.showOnboarding = false});
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +52,9 @@ class ClockDoApp extends StatelessWidget {
             supportedLocales: AppLocalizations.supportedLocales,
             theme: _buildLightTheme(),
             darkTheme: _buildDarkTheme(),
-            home: const HomeScreen(),
+            home: showOnboarding
+                ? const OnboardingScreen()
+                : const HomeScreen(),
           );
         },
       ),

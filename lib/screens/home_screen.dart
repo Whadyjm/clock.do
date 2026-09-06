@@ -15,6 +15,8 @@ import '../widgets/auth/auth_sheet.dart';
 import '../widgets/settings/app_settings_sheet.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/radial_math.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'onboarding_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -185,47 +187,54 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // ── Header (fecha / hora / botones) ─────────────────
-            FadeTransition(
-              opacity: _headerFade,
-              child: SlideTransition(
-                position: _headerSlide,
-                child: _buildHeader(context),
-              ),
+            Column(
+              children: [
+                // ── Header (fecha / hora / botones) ─────────────────
+                FadeTransition(
+                  opacity: _headerFade,
+                  child: SlideTransition(
+                    position: _headerSlide,
+                    child: _buildHeader(context),
+                  ),
+                ),
+                // ── Tira semanal ───────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: const WeeklyDateStrip(),
+                ),
+                // ── Reloj colapsable (FUERA del scroll) ────────────
+                AnimatedBuilder(
+                  animation: _taskScrollCtrl,
+                  builder: (ctx, _) {
+                    final offset = _taskScrollCtrl.hasClients
+                        ? _taskScrollCtrl.offset.clamp(0.0, clockMaxH)
+                        : 0.0;
+                    final clockH = (clockMaxH - offset).clamp(0.0, clockMaxH);
+                    final shrinkRatio = offset / clockMaxH;
+                    return SizedBox(
+                      height: clockH,
+                      child: _buildClockWidget(ctx, shrinkRatio),
+                    );
+                  },
+                ),
+                // ── Lista de tareas (scroll propio) ────────────────
+                Expanded(
+                  child: CustomScrollView(
+                    controller: _taskScrollCtrl,
+                    physics: const BouncingScrollPhysics(),
+                    slivers: _buildTaskSlivers(context),
+                  ),
+                ),
+              ],
             ),
-            // ── Tira semanal ───────────────────────────────
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: const WeeklyDateStrip(),
-            ),
-            // ── Reloj colapsable (FUERA del scroll) ────────────
-            // AnimatedBuilder escucha el scroll de la lista de tareas
-            // y encoge la altura del reloj sin que haya competencia
-            // de gestos entre el reloj y el scroll.
-            AnimatedBuilder(
-              animation: _taskScrollCtrl,
-              builder: (ctx, _) {
-                final offset = _taskScrollCtrl.hasClients
-                    ? _taskScrollCtrl.offset.clamp(0.0, clockMaxH)
-                    : 0.0;
-                final clockH = (clockMaxH - offset).clamp(0.0, clockMaxH);
-                final shrinkRatio = offset / clockMaxH;
-                return SizedBox(
-                  height: clockH,
-                  child: _buildClockWidget(ctx, shrinkRatio),
-                );
-              },
-            ),
-            // ── Lista de tareas (scroll propio) ────────────────
-            Expanded(
-              child: CustomScrollView(
-                controller: _taskScrollCtrl,
-                physics: const BouncingScrollPhysics(),
-                slivers: _buildTaskSlivers(context),
-              ),
-            ),
+            // ── Botón Debug Onboarding flotante en Home ──────────
+            /*Positioned(
+              bottom: 16,
+              left: 16,
+              child: _buildDebugOnboardingButton(context),
+            ),*/
           ],
         ),
       ),
@@ -844,6 +853,90 @@ class _HomeScreenState extends State<HomeScreen>
               borderRadius: BorderRadius.circular(20),
               onTap: () => _openCreateSheet(context),
               child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Botón Debug para abrir Onboarding
+  // ──────────────────────────────────────────────
+  Widget _buildDebugOnboardingButton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C5CE7).withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFF6C5CE7).withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('debug_onboarding_button'),
+          borderRadius: BorderRadius.circular(22),
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const OnboardingScreen(fromSettings: true),
+              ),
+            );
+          },
+          onLongPress: () async {
+            HapticFeedback.heavyImpact();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('clockdo_onboarding_completed', false);
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🔧 Estado de primera instalación restablecido (completed=false)'),
+                duration: Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFF7675), Color(0xFF6C5CE7)],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.bug_report_rounded,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'DEBUG ONBOARDING',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
+                    color: Color(0xFF6C5CE7),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

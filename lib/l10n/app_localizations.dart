@@ -61,6 +61,24 @@ abstract class AppLocalizations {
   // ── Ajustes / Settings ──
   String get settingsTitle;
   String get settingsSubtitle;
+  String get viewOnboardingOption;
+
+  // ── Onboarding ──
+  String get onboardingSkip;
+  String get onboardingNext;
+  String get onboardingGetStarted;
+  String get onboardingStep1Badge;
+  String get onboardingStep1Title;
+  String get onboardingStep1Desc;
+  String get onboardingStep2Badge;
+  String get onboardingStep2Title;
+  String get onboardingStep2Desc;
+  String get onboardingStep3Badge;
+  String get onboardingStep3Title;
+  String get onboardingStep3Desc;
+  String get onboardingStep4Badge;
+  String get onboardingStep4Title;
+  String get onboardingStep4Desc;
 
   // ── Selector de Idioma ──
   String get languageTitle;

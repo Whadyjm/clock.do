@@ -251,4 +251,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSuccessMessage => 'Signed in successfully';
   @override
   String get invalidCredentialsError => 'Authentication error: check your credentials';
+
+  @override
+  String get viewOnboardingOption => 'View Welcome Guide';
+  @override
+  String get onboardingSkip => 'Skip';
+  @override
+  String get onboardingNext => 'Next';
+  @override
+  String get onboardingGetStarted => 'Get Started! 🚀';
+
+  @override
+  String get onboardingStep1Badge => '⏱️ RADIAL INNOVATION';
+  @override
+  String get onboardingStep1Title => 'Your Time in a New Dimension';
+  @override
+  String get onboardingStep1Desc => 'Say goodbye to boring linear lists. Visualize and master your entire day on a gorgeous interactive circular clock.';
+
+  @override
+  String get onboardingStep2Badge => '🎯 TOTAL FOCUS';
+  @override
+  String get onboardingStep2Title => 'Plan Instantly with a Touch';
+  @override
+  String get onboardingStep2Desc => 'Drag on the dial to schedule tasks or keep pending items in the backlog ready to be placed on your clock.';
+
+  @override
+  String get onboardingStep3Badge => '🔔 SYNCED & SECURE';
+  @override
+  String get onboardingStep3Title => 'Absolute Punctuality & Cloud Backup';
+  @override
+  String get onboardingStep3Desc => 'Smart reminders with custom advance alerts and seamless cloud backup so you never miss a beat.';
+
+  @override
+  String get onboardingStep4Badge => '✨ ALL SET';
+  @override
+  String get onboardingStep4Title => 'Welcome to Clock.Do';
+  @override
+  String get onboardingStep4Desc => 'Your day organized, your goals reached, and your time under total control. Let\'s get started!';
 }
