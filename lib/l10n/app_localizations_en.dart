@@ -288,4 +288,118 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingStep4Title => 'Welcome to Clock.Do';
   @override
   String get onboardingStep4Desc => 'Your day organized, your goals reached, and your time under total control. Let\'s get started!';
+
+  // ── Gamification & Time Mastery (EN) ──
+  @override
+  String get gamificationTitle => 'Time Mastery';
+  @override
+  String get gamificationSubtitle => 'Your progress, streaks & productivity achievements';
+  @override
+  String get ticksLabel => 'Ticks';
+  @override
+  String get currentStreakLabel => 'Current Streak';
+  @override
+  String get bestStreakLabel => 'Best Streak';
+  @override
+  String get daysUnit => 'days';
+  @override
+  String get dayUnit => 'day';
+  @override
+  String get streakFreezeLabel => 'Streak Freezes';
+  @override
+  String get streakFreezeDesc => 'Automatically protect your streak if you take a rest day';
+  @override
+  String get levelLabel => 'Level';
+  @override
+  String get levelProgressLabel => 'Level Progress';
+  @override
+  String get nextLevelLabel => 'Next Level';
+  @override
+  String get maxLevelReached => 'Maximum Mastery Level Reached!';
+  @override
+  String get achievementsSectionTitle => 'Achievement Badges';
+  @override
+  String unlockedBadgeCount(int unlocked, int total) => '$unlocked of $total unlocked';
+  @override
+  String get statsSectionTitle => 'Global Statistics';
+  @override
+  String get tasksCompletedStat => 'Blocks Completed';
+  @override
+  String get focusMinutesStat => 'Focus Minutes';
+  @override
+  String get goldenDialTodayTitle => 'Golden Dial';
+  @override
+  String get goldenDialTodayActive => 'Golden Dial achieved today! 🎉';
+  @override
+  String goldenDialTodayProgress(int completed, int total, int percent) => '$completed of $total blocks ($percent%)';
+  @override
+  String get streakFreezeUsedToast => '🛡️ Streak Freeze used! Your streak was protected.';
+  @override
+  String levelUpCelebration(String levelName) => 'Level Up! You are now $levelName';
+  @override
+  String badgeUnlockedCelebration(String badgeName) => 'New badge unlocked: $badgeName!';
+  @override
+  String badgeUnlockedAt(String dateStr) => 'Unlocked on $dateStr';
+  @override
+  String get badgeLocked => 'Locked';
+  @override
+  String get claimReward => 'Claim!';
+  @override
+  String get awesomeButton => 'Awesome!';
+
+  // Levels
+  @override
+  String get level1Title => 'Apprentice Watchmaker';
+  @override
+  String get level2Title => 'Gear Craftsman';
+  @override
+  String get level3Title => 'Quartz Tuner';
+  @override
+  String get level4Title => 'Pendulum Guardian';
+  @override
+  String get level5Title => 'Chrononaut';
+  @override
+  String get level6Title => 'Grand Time Master';
+
+  // Badges
+  @override
+  String get badgeFirstStepTitle => 'First Step';
+  @override
+  String get badgeFirstStepDesc => 'Complete your first time block on the clock';
+  @override
+  String get badgeEarlyBirdTitle => 'Early Bird';
+  @override
+  String get badgeEarlyBirdDesc => 'Complete a block before 8:00 AM';
+  @override
+  String get badgeNightOwlTitle => 'Night Owl';
+  @override
+  String get badgeNightOwlDesc => 'Complete a block after 9:00 PM';
+  @override
+  String get badgeTaskMaster10Title => 'Steady Focus';
+  @override
+  String get badgeTaskMaster10Desc => 'Complete 10 time blocks on the clock';
+  @override
+  String get badgeTaskMaster50Title => 'Routine Master';
+  @override
+  String get badgeTaskMaster50Desc => 'Complete 50 time blocks';
+  @override
+  String get badgeStreak3Title => 'Initial Spark';
+  @override
+  String get badgeStreak3Desc => 'Maintain a 3-day streak';
+  @override
+  String get badgeStreak7Title => 'Steel Habit';
+  @override
+  String get badgeStreak7Desc => 'Reach a 7-day streak';
+  @override
+  String get badgeGoldenDialTitle => 'Golden Dial';
+  @override
+  String get badgeGoldenDialDesc => 'Complete 80% or more of your day\'s tasks (min. 3 blocks)';
+  @override
+  String get badgeCleanSlateTitle => 'Clean Slate';
+  @override
+  String get badgeCleanSlateDesc => 'Complete 5 pending tasks from the ToDo Backlog';
+  @override
+  String get badgeBalancedLifeTitle => 'Balanced Life';
+  @override
+  String get badgeBalancedLifeDesc => 'Complete blocks from at least 3 different categories in a day';
 }

@@ -124,3 +124,37 @@ ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER
 -- 2. Referencia a categoría por ID (soporta categorías personalizadas)
 ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS category_id TEXT;
 ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS category_id TEXT;
+
+-- ==============================================================================
+-- 7. Tabla de Gamificación y Maestría del Tiempo (Clock.Do Mastery)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.user_gamification (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    ticks INTEGER NOT NULL DEFAULT 0,
+    level INTEGER NOT NULL DEFAULT 1,
+    current_streak INTEGER NOT NULL DEFAULT 0,
+    best_streak INTEGER NOT NULL DEFAULT 0,
+    last_active_date DATE,
+    streak_freeze_count INTEGER NOT NULL DEFAULT 1,
+    total_completed_tasks INTEGER NOT NULL DEFAULT 0,
+    total_focus_minutes INTEGER NOT NULL DEFAULT 0,
+    unlocked_achievements JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.user_gamification ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Los usuarios pueden ver su propia gamificacion"
+    ON public.user_gamification FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Los usuarios pueden insertar su propia gamificacion"
+    ON public.user_gamification FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Los usuarios pueden actualizar su propia gamificacion"
+    ON public.user_gamification FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+

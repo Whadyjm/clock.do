@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task_category.dart';
 import '../models/time_block.dart';
 import '../models/todo_item.dart';
+import '../models/gamification_data.dart';
 import 'supabase_config.dart';
 
 /// Servicio centralizado para autenticación y operaciones de base de datos con Supabase.
@@ -289,6 +290,50 @@ class SupabaseService {
           .eq('user_id', user.id);
     } catch (e) {
       debugPrint('[SupabaseService] Error al eliminar category: $e');
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Base de Datos: Gamificación y Maestría
+  // ──────────────────────────────────────────────
+
+  /// Obtiene los datos de gamificación del usuario desde Supabase
+  Future<GamificationData?> fetchGamification() async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null) return null;
+
+    try {
+      final response = await supa
+          .from('user_gamification')
+          .select()
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (response != null) {
+        return GamificationData.fromSupabaseMap(Map<String, dynamic>.from(response));
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al obtener gamification: $e');
+      return null;
+    }
+  }
+
+  /// Inserta o actualiza los datos de gamificación del usuario en Supabase
+  Future<void> upsertGamification(GamificationData data) async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null) return;
+
+    try {
+      final map = data.toSupabaseMap();
+      map['user_id'] = user.id;
+      map['updated_at'] = DateTime.now().toUtc().toIso8601String();
+
+      await supa.from('user_gamification').upsert(map);
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al guardar gamification: $e');
     }
   }
 }

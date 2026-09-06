@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/clock_provider.dart';
 import '../../l10n/app_localizations.dart';
-import '../../screens/onboarding_screen.dart';
 
 /// Modal integral de Ajustes para Clock.Do.
 /// Permite configurar:
@@ -164,17 +163,7 @@ class AppSettingsSheet extends StatelessWidget {
                   const SizedBox(height: 10),
                   _buildNotificationSettings(context, provider, isDark, sectionBg, borderColor, textColor),
 
-                  const SizedBox(height: 22),
-
-                  // ── SECCIÓN 4: GUÍA Y ONBOARDING ────────────────
-                  _buildSectionHeader(
-                    title: l10n.viewOnboardingOption,
-                    icon: Icons.auto_awesome_rounded,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildOnboardingTile(context, isDark, sectionBg, borderColor, textColor),
-
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -578,84 +567,6 @@ class AppSettingsSheet extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────
-  // 4. Guía de Bienvenida / Onboarding
-  // ──────────────────────────────────────────────
-  Widget _buildOnboardingTile(
-    BuildContext context,
-    bool isDark,
-    Color sectionBg,
-    Color borderColor,
-    Color textColor,
-  ) {
-    final l10n = context.l10n;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () {
-          Navigator.of(context).pop();
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const OnboardingScreen(fromSettings: true),
-            ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: sectionBg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
-                  ),
-                ),
-                child: const Icon(Icons.rocket_launch_rounded,
-                    color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.viewOnboardingOption,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Explora las características visuales de Clock.Do',
-                      style: TextStyle(
-                        color: textColor.withValues(alpha: 0.6),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded,
-                  color: isDark ? const Color(0xFF6366F1) : const Color(0xFF6C5CE7)),
-            ],
-          ),
-        ),
       ),
     );
   }

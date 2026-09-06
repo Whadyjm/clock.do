@@ -288,4 +288,118 @@ class AppLocalizationsEs extends AppLocalizations {
   String get onboardingStep4Title => 'Bienvenido a Clock.Do';
   @override
   String get onboardingStep4Desc => 'Tu día organizado, tus metas alcanzadas y tu tiempo bajo control absoluto. ¡Es hora de comenzar!';
+
+  // ── Gamificación & Maestría del Tiempo (ES) ──
+  @override
+  String get gamificationTitle => 'Maestría del Tiempo';
+  @override
+  String get gamificationSubtitle => 'Tu progreso, rachas y logros de productividad';
+  @override
+  String get ticksLabel => 'Ticks';
+  @override
+  String get currentStreakLabel => 'Racha Actual';
+  @override
+  String get bestStreakLabel => 'Mejor Racha';
+  @override
+  String get daysUnit => 'días';
+  @override
+  String get dayUnit => 'día';
+  @override
+  String get streakFreezeLabel => 'Escudos de Racha';
+  @override
+  String get streakFreezeDesc => 'Protegen tu racha automáticamente si te tomas un día de descanso';
+  @override
+  String get levelLabel => 'Nivel';
+  @override
+  String get levelProgressLabel => 'Progreso de Nivel';
+  @override
+  String get nextLevelLabel => 'Siguiente Nivel';
+  @override
+  String get maxLevelReached => '¡Nivel Máximo de Maestría Alcanzado!';
+  @override
+  String get achievementsSectionTitle => 'Medallas de Logros';
+  @override
+  String unlockedBadgeCount(int unlocked, int total) => '$unlocked de $total desbloqueadas';
+  @override
+  String get statsSectionTitle => 'Estadísticas Globales';
+  @override
+  String get tasksCompletedStat => 'Bloques Completados';
+  @override
+  String get focusMinutesStat => 'Minutos de Enfoque';
+  @override
+  String get goldenDialTodayTitle => 'Día Dorado (Golden Dial)';
+  @override
+  String get goldenDialTodayActive => '¡Esfera dorada conseguida hoy! 🎉';
+  @override
+  String goldenDialTodayProgress(int completed, int total, int percent) => '$completed de $total bloques ($percent%)';
+  @override
+  String get streakFreezeUsedToast => '🛡️ ¡Escudo de Racha activado! Tu racha sigue intacta.';
+  @override
+  String levelUpCelebration(String levelName) => '¡Subiste de nivel! Ahora eres $levelName';
+  @override
+  String badgeUnlockedCelebration(String badgeName) => '¡Nueva medalla desbloqueada: $badgeName!';
+  @override
+  String badgeUnlockedAt(String dateStr) => 'Desbloqueado el $dateStr';
+  @override
+  String get badgeLocked => 'Bloqueado';
+  @override
+  String get claimReward => '¡Reclamar!';
+  @override
+  String get awesomeButton => '¡Genial!';
+
+  // Niveles
+  @override
+  String get level1Title => 'Aprendiz de Relojero';
+  @override
+  String get level2Title => 'Oficial de Rueda';
+  @override
+  String get level3Title => 'Afinador de Cuarzo';
+  @override
+  String get level4Title => 'Guardián del Péndulo';
+  @override
+  String get level5Title => 'Crononauta';
+  @override
+  String get level6Title => 'Gran Maestro del Tiempo';
+
+  // Logros
+  @override
+  String get badgeFirstStepTitle => 'Primer Paso';
+  @override
+  String get badgeFirstStepDesc => 'Completa tu primer bloque de tiempo en el reloj';
+  @override
+  String get badgeEarlyBirdTitle => 'Madrugador';
+  @override
+  String get badgeEarlyBirdDesc => 'Completa un bloque antes de las 8:00 AM';
+  @override
+  String get badgeNightOwlTitle => 'Búho Nocturno';
+  @override
+  String get badgeNightOwlDesc => 'Completa un bloque después de las 9:00 PM';
+  @override
+  String get badgeTaskMaster10Title => 'Enfoque Constante';
+  @override
+  String get badgeTaskMaster10Desc => 'Completa 10 bloques de tiempo en el reloj';
+  @override
+  String get badgeTaskMaster50Title => 'Maestro de la Rutina';
+  @override
+  String get badgeTaskMaster50Desc => 'Completa 50 bloques de tiempo';
+  @override
+  String get badgeStreak3Title => 'Chispa Inicial';
+  @override
+  String get badgeStreak3Desc => 'Mantén una racha de 3 días consecutivos';
+  @override
+  String get badgeStreak7Title => 'Hábito de Acero';
+  @override
+  String get badgeStreak7Desc => 'Alcanza una racha de 7 días seguidos';
+  @override
+  String get badgeGoldenDialTitle => 'Día Dorado';
+  @override
+  String get badgeGoldenDialDesc => 'Completa el 80% o más de tus tareas en un día (mínimo 3 bloques)';
+  @override
+  String get badgeCleanSlateTitle => 'Mesa Limpia';
+  @override
+  String get badgeCleanSlateDesc => 'Completa 5 tareas pendientes del Backlog ToDo';
+  @override
+  String get badgeBalancedLifeTitle => 'Vida Equilibrada';
+  @override
+  String get badgeBalancedLifeDesc => 'Completa bloques de al menos 3 categorías distintas en un día';
 }

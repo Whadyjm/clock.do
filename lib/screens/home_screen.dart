@@ -13,10 +13,10 @@ import '../widgets/calendar/monthly_calendar_sheet.dart';
 import '../widgets/todo/todo_list_sheet.dart';
 import '../widgets/auth/auth_sheet.dart';
 import '../widgets/settings/app_settings_sheet.dart';
+import '../widgets/gamification/gamification_sheet.dart';
+import '../widgets/gamification/achievement_unlocked_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/radial_math.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'onboarding_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -179,10 +179,42 @@ class _HomeScreenState extends State<HomeScreen>
     AppSettingsSheet.show(ctx);
   }
 
+  void _openGamificationSheet(BuildContext ctx) {
+    if (!mounted) return;
+    GamificationSheet.show(ctx);
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenH = MediaQuery.of(context).size.height;
     final clockMaxH = screenH * 0.44;
+
+    // Escuchar celebraciones de logros y subidas de nivel
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final provider = context.read<ClockProvider>();
+      if (provider.latestUnlockedAchievement != null) {
+        final ach = provider.latestUnlockedAchievement!;
+        provider.clearLatestAchievement();
+        AchievementCelebrationDialog.showAchievement(context, ach);
+      } else if (provider.latestLevelUp != null) {
+        final lvl = provider.latestLevelUp!;
+        provider.clearLatestLevelUp();
+        AchievementCelebrationDialog.showLevelUp(context, lvl);
+      } else if (provider.gamificationToast != null) {
+        final toast = provider.gamificationToast;
+        provider.clearGamificationToast();
+        if (toast == 'freeze_used') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.streakFreezeUsedToast),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF00CEC9),
+            ),
+          );
+        }
+      }
+    });
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -229,12 +261,6 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ],
             ),
-            // ── Botón Debug Onboarding flotante en Home ──────────
-            /*Positioned(
-              bottom: 16,
-              left: 16,
-              child: _buildDebugOnboardingButton(context),
-            ),*/
           ],
         ),
       ),
@@ -320,13 +346,66 @@ class _HomeScreenState extends State<HomeScreen>
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: 5),
+                // Chip Interactivo de Gamificación (Racha y Ticks)
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    _openGamificationSheet(context);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E2238) : const Color(0xFFF3F0FF),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF6C5CE7).withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.local_fire_department_rounded,
+                          size: 13,
+                          color: Color(0xFFE17055),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${provider.gamification.currentStreak}',
+                          style: const TextStyle(
+                            color: Color(0xFFE17055),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text('🪙', style: TextStyle(fontSize: 9.5)),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${provider.gamification.ticks}',
+                          style: const TextStyle(
+                            color: Color(0xFFF39C12),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        if (provider.isGoldenDialAchieved) ...[
+                          const SizedBox(width: 4),
+                          const Text('⭐', style: TextStyle(fontSize: 10)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
 
           const SizedBox(width: 6),
 
-          // Botones de acción del header (Cuenta/Cloud, ToDo, Ajustes, Calendario, Toggle 12/24H)
+          // Botones de acción del header (Cuenta/Cloud, ToDo, Maestría, Ajustes, Calendario, Toggle 12/24H)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -355,6 +434,16 @@ class _HomeScreenState extends State<HomeScreen>
                 icon: Icons.checklist_rounded,
                 badgeCount: provider.pendingTodoCount,
                 onTap: () => _openTodoListSheet(context),
+              ),
+              const SizedBox(width: 4),
+
+              // Botón de Maestría del Tiempo (Gamificación)
+              _buildHeaderIconButton(
+                buttonBg: buttonBg,
+                tooltip: l10n.gamificationTitle,
+                icon: Icons.emoji_events_rounded,
+                iconColor: const Color(0xFFF1C40F),
+                onTap: () => _openGamificationSheet(context),
               ),
               const SizedBox(width: 4),
 
@@ -501,6 +590,7 @@ class _HomeScreenState extends State<HomeScreen>
                   currentHour: provider.currentHourView,
                   is24h: provider.is24h,
                   now: provider.now,
+                  isGoldenDial: provider.isGoldenDialAchieved,
                   onGestureComplete: (s, e) => _openCreateSheet(
                     ctx,
                     startHour: s,
@@ -853,90 +943,6 @@ class _HomeScreenState extends State<HomeScreen>
               borderRadius: BorderRadius.circular(20),
               onTap: () => _openCreateSheet(context),
               child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────
-  // Botón Debug para abrir Onboarding
-  // ──────────────────────────────────────────────
-  Widget _buildDebugOnboardingButton(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6C5CE7).withValues(alpha: 0.25),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF6C5CE7).withValues(alpha: 0.4),
-          width: 1.5,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: const Key('debug_onboarding_button'),
-          borderRadius: BorderRadius.circular(22),
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const OnboardingScreen(fromSettings: true),
-              ),
-            );
-          },
-          onLongPress: () async {
-            HapticFeedback.heavyImpact();
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setBool('clockdo_onboarding_completed', false);
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('🔧 Estado de primera instalación restablecido (completed=false)'),
-                duration: Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFFF7675), Color(0xFF6C5CE7)],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.bug_report_rounded,
-                    color: Colors.white,
-                    size: 13,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'DEBUG ONBOARDING',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.6,
-                    color: Color(0xFF6C5CE7),
-                  ),
-                ),
-              ],
             ),
           ),
         ),

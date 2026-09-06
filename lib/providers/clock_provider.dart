@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
 import '../models/todo_item.dart';
+import '../models/gamification_data.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 
@@ -15,6 +16,7 @@ const _kReminderMinutesKey = 'clockdo_reminder_minutes';
 const _kNotifEnabledKey = 'clockdo_notif_enabled';
 const _kCategoriesStorageKey = 'clockdo_custom_categories';
 const _kLocaleStorageKey = 'clockdo_locale';
+const _kGamificationStorageKey = 'clockdo_gamification';
 
 /// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario, tareas ToDo y sincronización Supabase.
 class ClockProvider extends ChangeNotifier {
@@ -118,6 +120,52 @@ class ClockProvider extends ChangeNotifier {
   /// Hora actual normalizada al rango de la vista (12h → mod 12).
   double get currentHourView =>
       _is24h ? currentHourDecimal : currentHourDecimal % 12;
+
+  // ──────────────────────────────────────────────
+  // Gamificación y Maestría Temporal
+  // ──────────────────────────────────────────────
+  GamificationData _gamification = const GamificationData();
+  GamificationData get gamification => _gamification;
+
+  Achievement? _latestUnlockedAchievement;
+  Achievement? get latestUnlockedAchievement => _latestUnlockedAchievement;
+  void clearLatestAchievement() {
+    _latestUnlockedAchievement = null;
+  }
+
+  WatchmakerLevel? _latestLevelUp;
+  WatchmakerLevel? get latestLevelUp => _latestLevelUp;
+  void clearLatestLevelUp() {
+    _latestLevelUp = null;
+  }
+
+  String? _gamificationToast;
+  String? get gamificationToast => _gamificationToast;
+  void clearGamificationToast() {
+    _gamificationToast = null;
+  }
+
+  /// Indica si el día seleccionado ha alcanzado el estado de Día Dorado (Golden Dial):
+  /// Al menos 2 tareas planificadas y 80% o más completadas.
+  bool get isGoldenDialAchieved {
+    final dayBlocks = selectedDateBlocks;
+    if (dayBlocks.length < 2) return false;
+    final completed = dayBlocks.where((b) => b.status == TaskStatus.completed).length;
+    return (completed / dayBlocks.length) >= 0.8;
+  }
+
+  /// Proporción de cumplimiento (0.0 a 1.0) para el día seleccionado
+  double get dailyCompletionRatio {
+    final dayBlocks = selectedDateBlocks;
+    if (dayBlocks.isEmpty) return 0.0;
+    final completed = dayBlocks.where((b) => b.status == TaskStatus.completed).length;
+    return (completed / dayBlocks.length).clamp(0.0, 1.0);
+  }
+
+  int get dailyCompletedCount =>
+      selectedDateBlocks.where((b) => b.status == TaskStatus.completed).length;
+
+  int get dailyTotalCount => selectedDateBlocks.length;
 
   // ──────────────────────────────────────────────
   // Inicialización
@@ -415,6 +463,30 @@ class ClockProvider extends ChangeNotifier {
       _todoItems.addAll(todoMap.values);
       _todoItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       await _saveTodosToStorage();
+
+      // 3. Sincronizar Gamificación
+      final cloudGamification = await _supabase.fetchGamification();
+      if (cloudGamification != null) {
+        final mergedAchievements = Map<String, DateTime>.from(_gamification.unlockedAchievements);
+        cloudGamification.unlockedAchievements.forEach((k, v) {
+          if (!mergedAchievements.containsKey(k) || v.isBefore(mergedAchievements[k]!)) {
+            mergedAchievements[k] = v;
+          }
+        });
+
+        _gamification = _gamification.copyWith(
+          ticks: _gamification.ticks > cloudGamification.ticks ? _gamification.ticks : cloudGamification.ticks,
+          currentStreak: _gamification.currentStreak > cloudGamification.currentStreak ? _gamification.currentStreak : cloudGamification.currentStreak,
+          bestStreak: _gamification.bestStreak > cloudGamification.bestStreak ? _gamification.bestStreak : cloudGamification.bestStreak,
+          streakFreezeCount: _gamification.streakFreezeCount > cloudGamification.streakFreezeCount ? _gamification.streakFreezeCount : cloudGamification.streakFreezeCount,
+          totalCompletedTasks: _gamification.totalCompletedTasks > cloudGamification.totalCompletedTasks ? _gamification.totalCompletedTasks : cloudGamification.totalCompletedTasks,
+          totalFocusMinutes: _gamification.totalFocusMinutes > cloudGamification.totalFocusMinutes ? _gamification.totalFocusMinutes : cloudGamification.totalFocusMinutes,
+          unlockedAchievements: mergedAchievements,
+          lastActiveDate: _gamification.lastActiveDate ?? cloudGamification.lastActiveDate,
+        );
+      }
+      await _saveGamificationToStorage();
+      await _supabase.upsertGamification(_gamification);
     } catch (e) {
       debugPrint('[ClockProvider] Error al sincronizar con la nube: $e');
     } finally {
@@ -470,6 +542,7 @@ class ClockProvider extends ChangeNotifier {
 
     if (nextStatus == TaskStatus.completed) {
       _notifService.cancelTaskReminder(id);
+      _onTaskCompleted(updated);
     } else {
       _scheduleBlockNotification(updated);
     }
@@ -510,6 +583,9 @@ class ClockProvider extends ChangeNotifier {
     _todoItems[idx] = updated;
     _saveTodosToStorage();
     _supabase.upsertTodo(updated);
+    if (nextCompleted) {
+      _onTodoCompleted(updated);
+    }
     notifyListeners();
   }
 
@@ -638,6 +714,11 @@ class ClockProvider extends ChangeNotifier {
     await prefs.setStringList(_kTodoStorageKey, jsonList);
   }
 
+  Future<void> _saveGamificationToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kGamificationStorageKey, jsonEncode(_gamification.toJson()));
+  }
+
   // ──────────────────────────────────────────────
   // CRUD de Categorías Personalizadas
   // ──────────────────────────────────────────────
@@ -747,7 +828,231 @@ class ClockProvider extends ChangeNotifier {
       }
     }
 
+    // Cargar Gamificación y Maestría
+    if (prefs.containsKey(_kGamificationStorageKey)) {
+      try {
+        final raw = prefs.getString(_kGamificationStorageKey);
+        if (raw != null) {
+          _gamification = GamificationData.fromJson(jsonDecode(raw));
+          _evaluateStreakGrace();
+        }
+      } catch (e) {
+        debugPrint('[ClockProvider] Error al cargar gamificación: $e');
+      }
+    }
+
     notifyListeners();
+  }
+
+  // ──────────────────────────────────────────────
+  // Motor de Gamificación y Maestría
+  // ──────────────────────────────────────────────
+
+  /// Evalúa si el usuario mantuvo la racha, la perdió o salvó un día usando Streak Freeze.
+  void _evaluateStreakGrace() {
+    if (_gamification.lastActiveDate == null || _gamification.currentStreak == 0) return;
+    final today = normalizeDate(_now);
+    final last = normalizeDate(_gamification.lastActiveDate!);
+    final diffDays = today.difference(last).inDays;
+
+    if (diffDays == 0 || diffDays == 1) {
+      // Racha activa y en orden
+      return;
+    }
+
+    if (diffDays == 2 && _gamification.streakFreezeCount > 0) {
+      // Se saltó exactamente ayer, pero contaba con un escudo de racha
+      _gamification = _gamification.copyWith(
+        streakFreezeCount: _gamification.streakFreezeCount - 1,
+        lastActiveDate: today.subtract(const Duration(days: 1)),
+      );
+      _gamificationToast = 'freeze_used';
+      _saveGamificationToStorage();
+      _supabase.upsertGamification(_gamification);
+    } else if (diffDays > 1) {
+      // Racha rota por inactividad
+      _gamification = _gamification.copyWith(currentStreak: 0);
+      _saveGamificationToStorage();
+      _supabase.upsertGamification(_gamification);
+    }
+  }
+
+  /// Procesa la finalización de un bloque de tiempo (Ticks, Racha, Nivel y Logros).
+  void _onTaskCompleted(TimeBlock block) {
+    final today = normalizeDate(_now);
+    int ticksEarned = 25; // Base por bloque completado
+
+    // Bono Madrugador (+10 ticks si se completa antes de las 8:00 AM)
+    if (_now.hour < 8) {
+      ticksEarned += 10;
+    }
+
+    // Duración de enfoque estimada
+    final durationMinutes = (block.durationHours.abs() * 60).round().clamp(1, 1440);
+
+    // Actualización de Racha
+    int newStreak = _gamification.currentStreak;
+    int newBestStreak = _gamification.bestStreak;
+    DateTime? last = _gamification.lastActiveDate != null
+        ? normalizeDate(_gamification.lastActiveDate!)
+        : null;
+
+    if (last == null) {
+      newStreak = 1;
+    } else {
+      final diffDays = today.difference(last).inDays;
+      if (diffDays == 0) {
+        // Mismo día: racha ya contada para hoy
+      } else if (diffDays == 1) {
+        // Día consecutivo directo
+        newStreak += 1;
+      } else if (diffDays == 2 && _gamification.streakFreezeCount > 0) {
+        // Día rescatado con Streak Freeze
+        newStreak += 1;
+        _gamification = _gamification.copyWith(
+          streakFreezeCount: _gamification.streakFreezeCount - 1,
+        );
+        _gamificationToast = 'freeze_used';
+      } else {
+        // Racha reiniciada
+        newStreak = 1;
+      }
+    }
+
+    if (newStreak > newBestStreak) {
+      newBestStreak = newStreak;
+    }
+
+    final oldLevel = _gamification.currentLevel;
+    final newTicks = _gamification.ticks + ticksEarned;
+    final newTotalTasks = _gamification.totalCompletedTasks + 1;
+    final newTotalMinutes = _gamification.totalFocusMinutes + durationMinutes;
+
+    _gamification = _gamification.copyWith(
+      ticks: newTicks,
+      currentStreak: newStreak,
+      bestStreak: newBestStreak,
+      lastActiveDate: today,
+      totalCompletedTasks: newTotalTasks,
+      totalFocusMinutes: newTotalMinutes,
+    );
+
+    // Verificar si subió de nivel
+    final newLevel = _gamification.currentLevel;
+    if (newLevel.level > oldLevel.level) {
+      _latestLevelUp = newLevel;
+    }
+
+    // Evaluar catálogo de logros
+    _evaluateAchievements(triggerBlock: block);
+
+    _saveGamificationToStorage();
+    _supabase.upsertGamification(_gamification);
+  }
+
+  /// Procesa la finalización de una tarea ToDo del backlog (+15 Ticks).
+  void _onTodoCompleted(TodoItem item) {
+    final oldLevel = _gamification.currentLevel;
+    final newTicks = _gamification.ticks + 15;
+    _gamification = _gamification.copyWith(ticks: newTicks);
+
+    final newLevel = _gamification.currentLevel;
+    if (newLevel.level > oldLevel.level) {
+      _latestLevelUp = newLevel;
+    }
+
+    // Logro Mesa Limpia: 5 tareas ToDo completadas
+    final completedTodosCount = _todoItems.where((t) => t.isCompleted).length;
+    if (completedTodosCount >= 5) {
+      _unlockAchievement('clean_slate');
+    }
+
+    _saveGamificationToStorage();
+    _supabase.upsertGamification(_gamification);
+  }
+
+  /// Desbloquea un logro específico si aún no ha sido obtenido.
+  void _unlockAchievement(String achievementId) {
+    if (_gamification.unlockedAchievements.containsKey(achievementId)) return;
+    final ach = Achievement.catalog.firstWhere(
+      (a) => a.id == achievementId,
+      orElse: () => Achievement.catalog.first,
+    );
+    final updatedMap = Map<String, DateTime>.from(_gamification.unlockedAchievements);
+    final nowUtc = DateTime.now().toUtc();
+    updatedMap[achievementId] = nowUtc;
+
+    final oldLevel = _gamification.currentLevel;
+    final newTicks = _gamification.ticks + ach.pointsReward;
+
+    _gamification = _gamification.copyWith(
+      ticks: newTicks,
+      unlockedAchievements: updatedMap,
+    );
+
+    final newLevel = _gamification.currentLevel;
+    if (newLevel.level > oldLevel.level) {
+      _latestLevelUp = newLevel;
+    }
+
+    _latestUnlockedAchievement = ach.copyWith(unlockedAt: nowUtc);
+  }
+
+  /// Evalúa las condiciones para cada uno de los logros disponibles.
+  void _evaluateAchievements({TimeBlock? triggerBlock}) {
+    // 1. Primer Paso
+    if (_gamification.totalCompletedTasks >= 1) {
+      _unlockAchievement('first_step');
+    }
+
+    // 2. Madrugador (< 8:00 AM)
+    if (_now.hour < 8) {
+      _unlockAchievement('early_bird');
+    }
+
+    // 3. Búho Nocturno (>= 21:00 / 9:00 PM)
+    if (_now.hour >= 21) {
+      _unlockAchievement('night_owl');
+    }
+
+    // 4. Enfoque Constante (10 bloques)
+    if (_gamification.totalCompletedTasks >= 10) {
+      _unlockAchievement('task_master_10');
+    }
+
+    // 5. Maestro de la Rutina (50 bloques)
+    if (_gamification.totalCompletedTasks >= 50) {
+      _unlockAchievement('task_master_50');
+    }
+
+    // 6. Racha de 3 días
+    if (_gamification.currentStreak >= 3) {
+      _unlockAchievement('streak_3');
+    }
+
+    // 7. Racha de 7 días
+    if (_gamification.currentStreak >= 7) {
+      _unlockAchievement('streak_7');
+    }
+
+    // 8. Día Dorado (Golden Dial: 80%+ de tareas del día con al menos 3 bloques)
+    final dayBlocks = selectedDateBlocks;
+    if (dayBlocks.length >= 3) {
+      final completed = dayBlocks.where((b) => b.status == TaskStatus.completed).length;
+      if ((completed / dayBlocks.length) >= 0.8) {
+        _unlockAchievement('golden_dial');
+      }
+    }
+
+    // 9. Vida Equilibrada: bloques completados de al menos 3 categorías distintas hoy
+    final todayBlocks = blocksForDate(normalizeDate(_now));
+    final completedCats = todayBlocks
+        .where((b) => b.status == TaskStatus.completed)
+        .map((b) => b.category.id)
+        .toSet();
+    if (completedCats.length >= 3) {
+      _unlockAchievement('balanced_life');
+    }
   }
 
   @override

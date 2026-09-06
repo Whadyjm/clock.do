@@ -189,6 +189,66 @@ abstract class AppLocalizations {
   String get syncedStatus;
   String get authSuccessMessage;
   String get invalidCredentialsError;
+
+  // ── Gamificación & Maestría del Tiempo ──
+  String get gamificationTitle;
+  String get gamificationSubtitle;
+  String get ticksLabel;
+  String get currentStreakLabel;
+  String get bestStreakLabel;
+  String get daysUnit;
+  String get dayUnit;
+  String get streakFreezeLabel;
+  String get streakFreezeDesc;
+  String get levelLabel;
+  String get levelProgressLabel;
+  String get nextLevelLabel;
+  String get maxLevelReached;
+  String get achievementsSectionTitle;
+  String unlockedBadgeCount(int unlocked, int total);
+  String get statsSectionTitle;
+  String get tasksCompletedStat;
+  String get focusMinutesStat;
+  String get goldenDialTodayTitle;
+  String get goldenDialTodayActive;
+  String goldenDialTodayProgress(int completed, int total, int percent);
+  String get streakFreezeUsedToast;
+  String levelUpCelebration(String levelName);
+  String badgeUnlockedCelebration(String badgeName);
+  String badgeUnlockedAt(String dateStr);
+  String get badgeLocked;
+  String get claimReward;
+  String get awesomeButton;
+
+  // Niveles
+  String get level1Title;
+  String get level2Title;
+  String get level3Title;
+  String get level4Title;
+  String get level5Title;
+  String get level6Title;
+
+  // Logros
+  String get badgeFirstStepTitle;
+  String get badgeFirstStepDesc;
+  String get badgeEarlyBirdTitle;
+  String get badgeEarlyBirdDesc;
+  String get badgeNightOwlTitle;
+  String get badgeNightOwlDesc;
+  String get badgeTaskMaster10Title;
+  String get badgeTaskMaster10Desc;
+  String get badgeTaskMaster50Title;
+  String get badgeTaskMaster50Desc;
+  String get badgeStreak3Title;
+  String get badgeStreak3Desc;
+  String get badgeStreak7Title;
+  String get badgeStreak7Desc;
+  String get badgeGoldenDialTitle;
+  String get badgeGoldenDialDesc;
+  String get badgeCleanSlateTitle;
+  String get badgeCleanSlateDesc;
+  String get badgeBalancedLifeTitle;
+  String get badgeBalancedLifeDesc;
 }
 
 class _AppLocalizationsDelegate

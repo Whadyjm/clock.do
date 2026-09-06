@@ -5,7 +5,6 @@ import 'package:clockdo/l10n/app_localizations.dart';
 import 'package:clockdo/l10n/app_localizations_es.dart';
 import 'package:clockdo/l10n/app_localizations_en.dart';
 import 'package:clockdo/screens/onboarding_screen.dart';
-import 'package:clockdo/screens/home_screen.dart';
 import 'package:clockdo/widgets/settings/app_settings_sheet.dart';
 import 'package:clockdo/providers/clock_provider.dart';
 import 'package:provider/provider.dart';
@@ -164,36 +163,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Check that "Ver Guía de Bienvenida" tile exists
-      expect(find.text('Ver Guía de Bienvenida'), findsWidgets);
-    });
-
-    testWidgets('Debug Onboarding button on HomeScreen opens OnboardingScreen without reinstalling', (tester) async {
-      await tester.pumpWidget(
-        ChangeNotifierProvider(
-          create: (_) => ClockProvider(),
-          child: const MaterialApp(
-            locale: Locale('es'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: HomeScreen(),
-          ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Check that the debug button is rendered
-      expect(find.byKey(const Key('debug_onboarding_button')), findsOneWidget);
-      expect(find.text('DEBUG ONBOARDING'), findsOneWidget);
-
-      // Tap debug button
-      await tester.tap(find.byKey(const Key('debug_onboarding_button')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // Verify that OnboardingScreen is opened
-      expect(find.byType(OnboardingScreen), findsOneWidget);
-      expect(find.text('⏱️ INNOVACIÓN RADIAL'), findsOneWidget);
+      // Check that "Ver Guía de Bienvenida" is hidden from Settings
+      expect(find.text('Ver Guía de Bienvenida'), findsNothing);
     });
   });
 }

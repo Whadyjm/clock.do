@@ -28,6 +28,7 @@ class RadialClockPainter extends CustomPainter {
   final DateTime now;
   final bool is24h;
   final bool isDark;
+  final bool isGoldenDial;
   final double? gestureStartAngle;
   final double? gestureCurrentAngle;
   final String? inspectedBlockId;
@@ -39,6 +40,7 @@ class RadialClockPainter extends CustomPainter {
     required this.now,
     required this.is24h,
     required this.isDark,
+    this.isGoldenDial = false,
     this.gestureStartAngle,
     this.gestureCurrentAngle,
     this.inspectedBlockId,
@@ -106,6 +108,17 @@ class RadialClockPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
 
+    // Si es Día Dorado (Golden Dial), dibujar resplandor áureo celestial
+    if (isGoldenDial) {
+      canvas.drawCircle(
+        center,
+        r + 2,
+        Paint()
+          ..color = const Color(0xFFF1C40F).withValues(alpha: 0.18)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+      );
+    }
+
     // Fondo
     canvas.drawCircle(
       center,
@@ -113,14 +126,16 @@ class RadialClockPainter extends CustomPainter {
       Paint()..color = colors.clockFace,
     );
 
-    // Borde
+    // Borde (dorado si Golden Dial activo)
     canvas.drawCircle(
       center,
       r,
       Paint()
-        ..color = colors.clockBorder
+        ..color = isGoldenDial
+            ? const Color(0xFFF1C40F).withValues(alpha: 0.7)
+            : colors.clockBorder
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
+        ..strokeWidth = isGoldenDial ? 2.0 : 1.2,
     );
   }
 
@@ -431,6 +446,7 @@ class RadialClockPainter extends CustomPainter {
       old.now.hour != now.hour ||
       old.is24h != is24h ||
       old.isDark != isDark ||
+      old.isGoldenDial != isGoldenDial ||
       old.gestureStartAngle != gestureStartAngle ||
       old.gestureCurrentAngle != gestureCurrentAngle;
 }
@@ -444,6 +460,7 @@ class RadialClockCanvas extends StatefulWidget {
   final double currentHour;
   final bool is24h;
   final DateTime? now;
+  final bool isGoldenDial;
   final void Function(double startHour, double endHour) onGestureComplete;
   final void Function(String id)? onBlockTap;
 
@@ -453,6 +470,7 @@ class RadialClockCanvas extends StatefulWidget {
     required this.currentHour,
     required this.is24h,
     this.now,
+    this.isGoldenDial = false,
     required this.onGestureComplete,
     this.onBlockTap,
   });
@@ -663,11 +681,55 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
                   now: widget.now ?? DateTime.now(),
                   is24h: widget.is24h,
                   isDark: isDark,
+                  isGoldenDial: widget.isGoldenDial,
                   gestureStartAngle: _gestureStartAngle,
                   gestureCurrentAngle: _gestureCurrentAngle,
                   inspectedBlockId: _inspectedBlock?.id,
                 ),
               ),
+
+              // Insignia visual Golden Dial cuando el día supera el 80% completado
+              if (widget.isGoldenDial && _gestureStartAngle == null)
+                Positioned(
+                  top: 4,
+                  left: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF1E2235)
+                          : Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFFF1C40F).withValues(alpha: 0.6),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFF1C40F).withValues(alpha: 0.25),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('⭐', style: TextStyle(fontSize: 11)),
+                        SizedBox(width: 4),
+                        Text(
+                          'GOLDEN DIAL',
+                          style: TextStyle(
+                            color: Color(0xFFF39C12),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // Botón flotante para activar/desactivar Modo Lupa
               Positioned(
