@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../l10n/app_localizations.dart';
 
 /// Modelo de categoría de tarea con soporte para categorías predeterminadas y personalizadas.
 class TaskCategory {
@@ -35,6 +36,28 @@ class TaskCategory {
 
   /// Nombre para mostrar (compatibilidad con la API previa).
   String get displayName => name;
+
+  /// Retorna el nombre traducido según el idioma activo si es predeterminada,
+  /// o su nombre original si es personalizada.
+  String getLocalizedName(BuildContext context) {
+    if (!isDefault) return name;
+    final l10n = AppLocalizations.of(context);
+    switch (id) {
+      case 'work':
+        return l10n.categoryWork;
+      case 'personal':
+        return l10n.categoryPersonal;
+      case 'health':
+        return l10n.categoryHealth;
+      case 'learning':
+        return l10n.categoryStudy;
+      case 'social':
+        return l10n.categoryLeisure;
+      case 'none':
+      default:
+        return l10n.categoryOther;
+    }
+  }
 
   // ──────────────────────────────────────────────
   // Categorías Predeterminadas

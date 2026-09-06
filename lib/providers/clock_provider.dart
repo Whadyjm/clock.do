@@ -14,6 +14,7 @@ const _kThemeStorageKey = 'clockdo_theme_mode';
 const _kReminderMinutesKey = 'clockdo_reminder_minutes';
 const _kNotifEnabledKey = 'clockdo_notif_enabled';
 const _kCategoriesStorageKey = 'clockdo_custom_categories';
+const _kLocaleStorageKey = 'clockdo_locale';
 
 /// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario, tareas ToDo y sincronización Supabase.
 class ClockProvider extends ChangeNotifier {
@@ -22,6 +23,7 @@ class ClockProvider extends ChangeNotifier {
   final List<TaskCategory> _customCategories = [];
   bool _is24h = false;
   ThemeMode _themeMode = ThemeMode.system;
+  Locale? _locale; // null = seguir sistema
   DateTime _now = DateTime.now();
   DateTime _selectedDate = normalizeDate(DateTime.now());
   Timer? _clockTimer;
@@ -82,6 +84,10 @@ class ClockProvider extends ChangeNotifier {
   bool get is24h => _is24h;
 
   ThemeMode get themeMode => _themeMode;
+
+  Locale? get locale => _locale;
+
+  String get currentLanguageCode => _locale?.languageCode ?? 'system';
 
   DateTime get now => _now;
 
@@ -265,6 +271,25 @@ class ClockProvider extends ChangeNotifier {
         return Icons.dark_mode_rounded;
       case ThemeMode.system:
         return Icons.brightness_auto_rounded;
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Gestión de Idioma (Español / Inglés / Sistema)
+  // ──────────────────────────────────────────────
+
+  void setLocale(Locale? newLocale) {
+    _locale = newLocale;
+    _saveLocaleToStorage();
+    notifyListeners();
+  }
+
+  Future<void> _saveLocaleToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_locale == null) {
+      await prefs.remove(_kLocaleStorageKey);
+    } else {
+      await prefs.setString(_kLocaleStorageKey, _locale!.languageCode);
     }
   }
 
@@ -676,6 +701,14 @@ class ClockProvider extends ChangeNotifier {
         _themeMode = ThemeMode.dark;
       } else {
         _themeMode = ThemeMode.system;
+      }
+    }
+
+    // Cargar Idioma
+    if (prefs.containsKey(_kLocaleStorageKey)) {
+      final langCode = prefs.getString(_kLocaleStorageKey);
+      if (langCode != null && langCode.isNotEmpty) {
+        _locale = Locale(langCode);
       }
     }
 

@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'task_category.dart';
+import '../l10n/app_localizations.dart';
 
 /// Estado de una tarea en el sistema.
 enum TaskStatus {
@@ -15,6 +17,18 @@ enum TaskStatus {
         return 'En progreso';
       case TaskStatus.completed:
         return 'Completada';
+    }
+  }
+
+  String getLocalizedName(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    switch (this) {
+      case TaskStatus.pending:
+        return l10n.statusPending;
+      case TaskStatus.inProgress:
+        return l10n.statusInProgress;
+      case TaskStatus.completed:
+        return l10n.statusCompleted;
     }
   }
 }

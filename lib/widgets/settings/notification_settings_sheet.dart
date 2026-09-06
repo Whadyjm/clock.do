@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/clock_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Modal de configuración global de recordatorios y notificaciones de ClockDo.
 class NotificationSettingsSheet extends StatelessWidget {
@@ -9,23 +10,38 @@ class NotificationSettingsSheet extends StatelessWidget {
 
   static const List<int> _reminderOptions = [0, 1, 5, 10, 15, 30, 60];
 
-  String _optionTitle(int minutes) {
-    if (minutes == 0) return 'Al comenzar la tarea';
-    if (minutes == 1) return '1 minuto antes';
-    if (minutes == 60) return '1 hora antes';
-    return '$minutes minutos antes';
+  String _optionTitle(BuildContext context, int minutes) {
+    final l10n = context.l10n;
+    if (minutes == 0) return l10n.advanceAtEventTime;
+    return l10n.advanceMinutesBefore(minutes);
   }
 
-  String _optionSubtitle(int minutes) {
-    if (minutes == 5) return 'Recomendado para la mayoría de tareas';
-    if (minutes == 0) return 'Aviso justo en la hora de inicio';
-    if (minutes == 30 || minutes == 60) return 'Ideal para tareas que requieren preparación';
-    return 'Aviso previo con antelación';
+  String _optionSubtitle(BuildContext context, int minutes) {
+    final isSpanish = Localizations.localeOf(context).languageCode == 'es';
+    if (minutes == 5) {
+      return isSpanish
+          ? 'Recomendado para la mayoría de tareas'
+          : 'Recommended for most tasks';
+    }
+    if (minutes == 0) {
+      return isSpanish
+          ? 'Aviso justo en la hora de inicio'
+          : 'Alert right at task start time';
+    }
+    if (minutes == 30 || minutes == 60) {
+      return isSpanish
+          ? 'Ideal para tareas que requieren preparación'
+          : 'Great for tasks requiring preparation';
+    }
+    return isSpanish
+        ? 'Aviso previo con antelación'
+        : 'Advance notification';
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ClockProvider>();
+    final l10n = context.l10n;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = Theme.of(context).cardColor;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -83,7 +99,7 @@ class NotificationSettingsSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Recordatorios Globales',
+                        l10n.notificationsSettingsTitle,
                         style: TextStyle(
                           color: textColor,
                           fontSize: 20,
@@ -91,9 +107,9 @@ class NotificationSettingsSheet extends StatelessWidget {
                           letterSpacing: -0.5,
                         ),
                       ),
-                      const Text(
-                        'Se aplica a todas tus tareas agendadas',
-                        style: TextStyle(
+                      Text(
+                        l10n.notificationsMasterToggleDesc,
+                        style: const TextStyle(
                           color: Color(0xFF9E98D4),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -125,7 +141,7 @@ class NotificationSettingsSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Activar Recordatorios',
+                          l10n.notificationsMasterToggle,
                           style: TextStyle(
                             color: textColor,
                             fontSize: 14,
@@ -133,7 +149,7 @@ class NotificationSettingsSheet extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          provider.notificationsEnabled ? 'Notificaciones activadas' : 'Notificaciones silenciadas',
+                          provider.notificationsEnabled ? l10n.success : l10n.remindersDisabledTooltip,
                           style: const TextStyle(
                             color: Color(0xFF9E98D4),
                             fontSize: 11,
@@ -157,9 +173,9 @@ class NotificationSettingsSheet extends StatelessWidget {
 
             // Tiempo de Anticipación
             Text(
-              'ANTICIPACIÓN DEL RECORDATORIO',
-              style: TextStyle(
-                color: const Color(0xFF9E98D4),
+              l10n.defaultAdvanceTime.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF9E98D4),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.0,
@@ -205,7 +221,7 @@ class NotificationSettingsSheet extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _optionTitle(minutes),
+                                _optionTitle(context, minutes),
                                 style: TextStyle(
                                   color: provider.notificationsEnabled
                                       ? (isSelected ? const Color(0xFF6C5CE7) : textColor)
@@ -215,7 +231,7 @@ class NotificationSettingsSheet extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                _optionSubtitle(minutes),
+                                _optionSubtitle(context, minutes),
                                 style: const TextStyle(
                                   color: Color(0xFF9E98D4),
                                   fontSize: 11,

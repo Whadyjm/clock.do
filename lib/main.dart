@@ -7,10 +7,12 @@ import 'services/notification_service.dart';
 import 'services/supabase_service.dart';
 import 'providers/clock_provider.dart';
 import 'screens/home_screen.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es', null);
+  await initializeDateFormatting('en', null);
   
   // Inicialización de servicios de notificaciones y Supabase
   await NotificationService().init();
@@ -31,13 +33,15 @@ class ClockDoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ClockProvider(),
-      child: Selector<ClockProvider, ThemeMode>(
-        selector: (_, provider) => provider.themeMode,
-        builder: (context, themeMode, _) {
+      child: Consumer<ClockProvider>(
+        builder: (context, provider, _) {
           return MaterialApp(
             title: 'Clock.Do',
             debugShowCheckedModeBanner: false,
-            themeMode: themeMode,
+            themeMode: provider.themeMode,
+            locale: provider.locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: _buildLightTheme(),
             darkTheme: _buildDarkTheme(),
             home: const HomeScreen(),

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:clockdo/providers/clock_provider.dart';
 import 'package:clockdo/screens/home_screen.dart';
 import 'package:clockdo/widgets/calendar/weekly_date_strip.dart';
+import 'package:clockdo/l10n/app_localizations.dart';
 
 void main() {
   setUpAll(() async {
@@ -19,6 +20,9 @@ void main() {
       ChangeNotifierProvider(
         create: (_) => ClockProvider(),
         child: const MaterialApp(
+          locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: HomeScreen(),
         ),
       ),
@@ -33,14 +37,16 @@ void main() {
     expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
     expect(find.byIcon(Icons.checklist_rounded), findsOneWidget);
     expect(find.byIcon(Icons.calendar_month_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.notifications_active_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.settings_rounded), findsOneWidget);
     expect(find.byIcon(Icons.add_rounded), findsOneWidget);
 
-    // Tocar el botón de ToDo para abrir la hoja
-    await tester.tap(find.byIcon(Icons.checklist_rounded));
-    await tester.pump(const Duration(milliseconds: 500));
+    // Tocar el botón de Ajustes para abrir el modal
+    await tester.tap(find.byIcon(Icons.settings_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('Tareas ToDo'), findsOneWidget);
-    expect(find.text('Pendientes'), findsOneWidget);
+    expect(find.text('Ajustes'), findsOneWidget);
+    expect(find.text('Español'), findsOneWidget);
+    expect(find.text('English'), findsOneWidget);
   });
 }

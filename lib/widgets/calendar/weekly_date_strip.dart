@@ -113,7 +113,10 @@ class _WeeklyDateStripState extends State<WeeklyDateStrip> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    DateFormat('EEE', 'es').format(date).toUpperCase().replaceAll('.', ''),
+                    DateFormat('EEE', Localizations.localeOf(context).languageCode)
+                        .format(date)
+                        .toUpperCase()
+                        .replaceAll('.', ''),
                     style: TextStyle(
                       color: isSelected
                           ? Colors.white.withValues(alpha: 0.8)

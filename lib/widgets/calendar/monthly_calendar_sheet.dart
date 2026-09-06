@@ -67,7 +67,9 @@ class _MonthlyCalendarSheetState extends State<MonthlyCalendarSheet> {
       }
     }
 
-    final monthTitle = DateFormat('MMMM yyyy', 'es').format(_displayedMonth);
+    final currentLocaleCode = Localizations.localeOf(context).languageCode;
+    final isSpanish = currentLocaleCode == 'es';
+    final monthTitle = DateFormat('MMMM yyyy', currentLocaleCode).format(_displayedMonth);
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Container(
@@ -149,7 +151,10 @@ class _MonthlyCalendarSheetState extends State<MonthlyCalendarSheet> {
           // Días de la semana
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) {
+            children: (isSpanish
+                    ? ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+                    : ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+                .map((d) {
               return SizedBox(
                 width: 38,
                 child: Center(

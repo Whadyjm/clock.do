@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/task_category.dart';
 import '../providers/clock_provider.dart';
+import '../l10n/app_localizations.dart';
 
 /// Modal para crear o editar una categoría personalizada.
 class CategoryCreatorDialog extends StatefulWidget {
@@ -192,25 +193,17 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
 
   Future<void> _confirmDelete(BuildContext context) async {
     HapticFeedback.heavyImpact();
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.delete_forever_rounded, color: Color(0xFFFF7675), size: 24),
-            SizedBox(width: 8),
-            Text('¿Eliminar categoría?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          ],
-        ),
-        content: Text(
-          'Las tareas asignadas a "${widget.existingCategory!.name}" pasarán a la categoría General.',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF9E98D4)),
-        ),
+        title: Text(l10n.delete),
+        content: Text(l10n.deleteCategoryConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -219,7 +212,7 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Eliminar'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -234,6 +227,7 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = context.l10n;
     final cardBg = Theme.of(context).cardColor;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final fieldFillColor = isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF7F6FD);
@@ -241,7 +235,7 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
     final bottomSafe = MediaQuery.of(context).padding.bottom;
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
 
-    final previewName = _nameCtrl.text.trim().isEmpty ? 'Mi Categoría' : _nameCtrl.text.trim();
+    final previewName = _nameCtrl.text.trim().isEmpty ? l10n.categoryOther : _nameCtrl.text.trim();
 
     return Container(
       padding: EdgeInsets.only(
@@ -292,7 +286,7 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  _isEditing ? 'Editar Categoría' : 'Nueva Categoría',
+                  _isEditing ? l10n.editCategoryTitle : l10n.newCategoryTitle,
                   style: TextStyle(
                     color: textColor,
                     fontSize: 20,
@@ -358,7 +352,7 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
               autofocus: true,
               style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.w600),
               decoration: InputDecoration(
-                hintText: 'Nombre de la categoría (ej: Gimnasio)',
+                hintText: l10n.categoryNameHint,
                 hintStyle: const TextStyle(color: Color(0xFF9E98D4), fontSize: 14),
                 prefixIcon: const Icon(Icons.label_outline_rounded, color: Color(0xFF6C5CE7), size: 20),
                 filled: true,
@@ -377,9 +371,9 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
             const SizedBox(height: 20),
 
             // Paleta de Colores
-            const Text(
-              'COLOR',
-              style: TextStyle(
+            Text(
+              l10n.categoryColorLabel.toUpperCase(),
+              style: const TextStyle(
                 color: Color(0xFF9E98D4),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -391,7 +385,7 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
               spacing: 10,
               runSpacing: 10,
               children: _palette.map((color) {
-                final isSelected = color.value == _selectedColor.value;
+                final isSelected = color == _selectedColor;
                 return GestureDetector(
                   onTap: () {
                     HapticFeedback.selectionClick();
@@ -430,9 +424,9 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
             const SizedBox(height: 22),
 
             // Grilla de Iconos
-            const Text(
-              'ICONO',
-              style: TextStyle(
+            Text(
+              l10n.categoryIconLabel.toUpperCase(),
+              style: const TextStyle(
                 color: Color(0xFF9E98D4),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -501,7 +495,7 @@ class _CategoryCreatorDialogState extends State<CategoryCreatorDialog> {
                     const Icon(Icons.check_circle_rounded, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      _isEditing ? 'Guardar Cambios' : 'Crear Categoría',
+                      _isEditing ? l10n.saveCategoryButton : l10n.createCategoryButton,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,

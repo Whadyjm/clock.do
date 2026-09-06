@@ -10,9 +10,10 @@ import '../widgets/radial_clock_canvas.dart';
 import '../widgets/task_form_sheet.dart';
 import '../widgets/calendar/weekly_date_strip.dart';
 import '../widgets/calendar/monthly_calendar_sheet.dart';
-import '../widgets/settings/notification_settings_sheet.dart';
 import '../widgets/todo/todo_list_sheet.dart';
 import '../widgets/auth/auth_sheet.dart';
+import '../widgets/settings/app_settings_sheet.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/radial_math.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -156,21 +157,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _openNotificationSettings(BuildContext ctx) {
-    if (!mounted) return;
-    HapticFeedback.selectionClick();
-    final provider = context.read<ClockProvider>();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: provider,
-        child: const NotificationSettingsSheet(),
-      ),
-    );
-  }
-
   void _openAuthSheet(BuildContext ctx) {
     if (!mounted) return;
     HapticFeedback.selectionClick();
@@ -186,163 +172,9 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _openThemeSelector(BuildContext ctx) {
+  void _openSettings(BuildContext ctx) {
     if (!mounted) return;
-    HapticFeedback.selectionClick();
-    final provider = context.read<ClockProvider>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = Theme.of(context).cardColor;
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottomPadding),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
-              blurRadius: 30,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF2A2D42) : const Color(0xFFDDD9F5),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            Text(
-              'Tema de la Aplicación',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildThemeOption(
-              context: context,
-              title: 'Modo Claro',
-              subtitle: 'Diseño brillante y tonos pastel',
-              icon: Icons.light_mode_rounded,
-              mode: ThemeMode.light,
-              isSelected: provider.themeMode == ThemeMode.light,
-            ),
-            const SizedBox(height: 8),
-            _buildThemeOption(
-              context: context,
-              title: 'Modo Oscuro',
-              subtitle: 'Superficies profundas y contrastes vívidos',
-              icon: Icons.dark_mode_rounded,
-              mode: ThemeMode.dark,
-              isSelected: provider.themeMode == ThemeMode.dark,
-            ),
-            const SizedBox(height: 8),
-            _buildThemeOption(
-              context: context,
-              title: 'Seguir Sistema',
-              subtitle: 'Se ajusta automáticamente a tu dispositivo',
-              icon: Icons.brightness_auto_rounded,
-              mode: ThemeMode.system,
-              isSelected: provider.themeMode == ThemeMode.system,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildThemeOption({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required ThemeMode mode,
-    required bool isSelected,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        context.read<ClockProvider>().setThemeMode(mode);
-        Navigator.of(context).pop();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF6C5CE7).withValues(alpha: 0.15)
-              : (isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF7F6FD)),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF6C5CE7) : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF6C5CE7)
-                    : (isDark ? const Color(0xFF2A2D42) : const Color(0xFFE8E4FF)),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                icon,
-                color: isSelected ? Colors.white : const Color(0xFF6C5CE7),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF9E98D4),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: Color(0xFF6C5CE7), size: 20),
-          ],
-        ),
-      ),
-    );
+    AppSettingsSheet.show(ctx);
   }
 
   @override
@@ -407,6 +239,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildHeader(BuildContext context) {
     final provider = context.watch<ClockProvider>();
+    final l10n = context.l10n;
     final selectedDate = provider.selectedDate;
     final isToday = provider.isViewingToday;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -414,8 +247,11 @@ class _HomeScreenState extends State<HomeScreen>
     final buttonBg = isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF0EEFF);
     final timeStr = DateFormat('HH:mm').format(provider.now);
 
-    final rawDateStr = DateFormat('EEEE, d MMMM', 'es').format(selectedDate);
-    final dateStr = rawDateStr[0].toUpperCase() + rawDateStr.substring(1);
+    final currentLocaleCode = Localizations.localeOf(context).languageCode;
+    final rawDateStr = DateFormat('EEEE, d MMMM', currentLocaleCode).format(selectedDate);
+    final dateStr = rawDateStr.isNotEmpty
+        ? (rawDateStr[0].toUpperCase() + rawDateStr.substring(1))
+        : '';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -466,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isToday ? 'Hoy • $dateStr' : dateStr,
+                  isToday ? '${l10n.today} • $dateStr' : dateStr,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -481,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen>
 
           const SizedBox(width: 6),
 
-          // Botones de acción del header (Cuenta/Cloud, ToDo, Recordatorios, Tema, Calendario, Toggle 12/24H)
+          // Botones de acción del header (Cuenta/Cloud, ToDo, Ajustes, Calendario, Toggle 12/24H)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -489,8 +325,8 @@ class _HomeScreenState extends State<HomeScreen>
               _buildHeaderIconButton(
                 buttonBg: buttonBg,
                 tooltip: provider.isUserLoggedIn
-                    ? 'Cuenta: ${provider.userEmail ?? "Conectado"}'
-                    : 'Iniciar Sesión / Nube',
+                    ? l10n.accountTooltip(provider.userEmail ?? "")
+                    : l10n.cloudSyncTooltip,
                 icon: provider.isUserLoggedIn
                     ? (provider.isCloudSyncing
                         ? Icons.sync_rounded
@@ -506,41 +342,26 @@ class _HomeScreenState extends State<HomeScreen>
               // Botón de Tareas ToDo (Backlog)
               _buildHeaderIconButton(
                 buttonBg: buttonBg,
-                tooltip: provider.pendingTodoCount == 1
-                    ? '1 tarea pendiente'
-                    : '${provider.pendingTodoCount} pendientes',
+                tooltip: l10n.pendingTodosTooltip(provider.pendingTodoCount),
                 icon: Icons.checklist_rounded,
                 badgeCount: provider.pendingTodoCount,
                 onTap: () => _openTodoListSheet(context),
               ),
               const SizedBox(width: 4),
 
-              // Botón de Recordatorios / Notificaciones
+              // Botón de Ajustes (Tema, Idioma, Notificaciones)
               _buildHeaderIconButton(
                 buttonBg: buttonBg,
-                tooltip: provider.notificationsEnabled
-                    ? 'Recordatorios: ${provider.reminderMinutesBefore == 0 ? "Al comenzar" : "${provider.reminderMinutesBefore}m antes"}'
-                    : 'Recordatorios desactivados',
-                icon: provider.notificationsEnabled
-                    ? Icons.notifications_active_rounded
-                    : Icons.notifications_off_rounded,
-                onTap: () => _openNotificationSettings(context),
-              ),
-              const SizedBox(width: 4),
-
-              // Selector de Modo de Tema
-              _buildHeaderIconButton(
-                buttonBg: buttonBg,
-                tooltip: 'Tema: ${provider.themeModeName}',
-                icon: provider.themeModeIcon,
-                onTap: () => _openThemeSelector(context),
+                tooltip: l10n.settingsTooltip,
+                icon: Icons.settings_rounded,
+                onTap: () => _openSettings(context),
               ),
               const SizedBox(width: 4),
 
               // Botón de Calendario Mensual
               _buildHeaderIconButton(
                 buttonBg: buttonBg,
-                tooltip: 'Calendario Mensual',
+                tooltip: l10n.monthlyCalendarTooltip,
                 icon: Icons.calendar_month_rounded,
                 onTap: () => _openMonthlyCalendar(context),
               ),
@@ -729,9 +550,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  isToday
-                      ? 'No tienes tareas hoy'
-                      : 'Sin tareas para este día',
+                  context.l10n.noTasksDay,
                   style: const TextStyle(
                     color: Color(0xFF9E98D4),
                     fontSize: 14,
@@ -739,9 +558,9 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Toca y arrastra en el reloj para agendar',
-                  style: TextStyle(
+                Text(
+                  context.l10n.noTasksDaySubtitle,
+                  style: const TextStyle(
                     color: Color(0xFFBBB5E8),
                     fontSize: 12,
                   ),
@@ -962,7 +781,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      block.status.displayName,
+                      block.status.getLocalizedName(context),
                       style: TextStyle(
                         color: _statusColor(block.status),
                         fontSize: 10,

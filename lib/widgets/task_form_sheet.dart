@@ -6,6 +6,7 @@ import '../models/time_block.dart';
 import '../models/task_category.dart';
 import '../providers/clock_provider.dart';
 import '../utils/radial_math.dart';
+import '../l10n/app_localizations.dart';
 import 'category_creator_dialog.dart';
 
 /// Bottom sheet con soporte completo de temas (Claro/Oscuro) para crear o editar tareas.
@@ -108,16 +109,42 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     Navigator.of(context).pop();
   }
 
-  void _delete(BuildContext context) {
+  void _delete(BuildContext context) async {
     if (!_isEditing) return;
-    HapticFeedback.heavyImpact();
-    context.read<ClockProvider>().deleteBlock(widget.existingBlock!.id);
-    Navigator.of(context).pop();
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(l10n.deleteTaskConfirmTitle),
+        content: Text(l10n.deleteTaskConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF7675),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      HapticFeedback.heavyImpact();
+      context.read<ClockProvider>().deleteBlock(widget.existingBlock!.id);
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = context.l10n;
     final cardBg = Theme.of(context).cardColor;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final fieldFillColor = isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF7F6FD);
@@ -178,10 +205,10 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  _isEditing ? 'Editar bloque' : 'Nuevo bloque',
+                  _isEditing ? l10n.editTaskTitle : l10n.newTaskTitle,
                   style: TextStyle(
                     color: textColor,
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                   ),
@@ -208,7 +235,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
             // Título de la tarea
             _buildTextField(
               controller: _titleCtrl,
-              label: '¿En qué vas a enfocarte?',
+              label: l10n.taskTitleHint,
               icon: Icons.edit_note_rounded,
               fillColor: fieldFillColor,
               textColor: textColor,
@@ -218,7 +245,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
             // Descripción opcional
             _buildTextField(
               controller: _descCtrl,
-              label: 'Notas adicionales (opcional)',
+              label: l10n.taskDescHint,
               icon: Icons.chat_bubble_outline_rounded,
               fillColor: fieldFillColor,
               textColor: textColor,
@@ -231,7 +258,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
               children: [
                 Expanded(
                   child: _buildTimeCard(
-                    label: 'INICIO',
+                    label: l10n.startTimeLabel.toUpperCase(),
                     value: _startHour,
                     color: _selectedCategory.color,
                     fillColor: fieldFillColor,
@@ -254,7 +281,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                 ),
                 Expanded(
                   child: _buildTimeCard(
-                    label: 'FIN',
+                    label: l10n.endTimeLabel.toUpperCase(),
                     value: _endHour,
                     color: _selectedCategory.color,
                     fillColor: fieldFillColor,
@@ -267,9 +294,9 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
             const SizedBox(height: 22),
 
             // Categoría
-            const Text(
-              'CATEGORÍA',
-              style: TextStyle(
+            Text(
+              l10n.categoryLabel.toUpperCase(),
+              style: const TextStyle(
                 color: Color(0xFF9E98D4),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -305,7 +332,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                     const Icon(Icons.check_circle_rounded, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      _isEditing ? 'Guardar Cambios' : 'Agendar Bloque',
+                      _isEditing ? l10n.save : l10n.scheduleTask,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -323,8 +350,9 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   }
 
   Widget _buildDatePickerCard(Color fillColor, Color borderColor, Color textColor) {
-    final dateStr = DateFormat('EEEE, d MMMM', 'es').format(_selectedDate);
-    final capitalized = dateStr[0].toUpperCase() + dateStr.substring(1);
+    final currentLocaleCode = Localizations.localeOf(context).languageCode;
+    final dateStr = DateFormat('EEEE, d MMMM', currentLocaleCode).format(_selectedDate);
+    final capitalized = dateStr.isNotEmpty ? (dateStr[0].toUpperCase() + dateStr.substring(1)) : '';
 
     return GestureDetector(
       onTap: () async {
@@ -548,7 +576,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    cat.displayName,
+                    cat.getLocalizedName(context),
                     style: TextStyle(
                       color: isSelected ? Colors.white : cat.color,
                       fontSize: 13,
@@ -580,14 +608,12 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                 width: 1.5,
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.add_rounded, color: Color(0xFF6C5CE7), size: 16),
-                SizedBox(width: 4),
                 Text(
-                  'Nueva',
-                  style: TextStyle(
+                  context.l10n.newCategoryOption,
+                  style: const TextStyle(
                     color: Color(0xFF6C5CE7),
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
@@ -933,7 +959,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
+              child: Text(context.l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -947,7 +973,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Aceptar'),
+              child: Text(context.l10n.accept),
             ),
           ],
         );
