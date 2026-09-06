@@ -670,6 +670,7 @@ class _HomeScreenState extends State<HomeScreen>
                   blocks: dayBlocks,
                   currentHour: provider.currentHourView,
                   is24h: provider.is24h,
+                  now: provider.now,
                   onGestureComplete: (s, e) => _openCreateSheet(
                     ctx,
                     startHour: s,

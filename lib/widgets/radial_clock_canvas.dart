@@ -180,8 +180,9 @@ class RadialClockPainter extends CustomPainter {
   void _drawClockNumbers(Canvas canvas, Offset center, double radius) {
     final total = is24h ? 24 : 12;
     final step = is24h ? 2 : 1;
+    final start = is24h ? 2 : 1;
 
-    for (var h = 1; h <= total; h += step) {
+    for (var h = start; h <= total; h += step) {
       final hourVal = is24h && h == 24 ? 0 : h;
       final angle = RadialMath.hourToAngle(hourVal.toDouble(), is24h: is24h);
       final pos = RadialMath.polarToCartesian(center, radius, angle);
@@ -358,11 +359,12 @@ class RadialClockPainter extends CustomPainter {
   // ── Agujas del Reloj Clásicas ─────────────────────────────
 
   void _drawClockHands(Canvas canvas, Offset center, double faceRadius) {
-    final hour = now.hour % 12;
+    final hour = is24h ? now.hour : (now.hour % 12);
     final minute = now.minute;
     final second = now.second + now.millisecond / 1000.0;
 
-    final hourAngle = ((hour + minute / 60.0) / 12.0) * 2 * pi - pi / 2;
+    final hourDec = hour + minute / 60.0 + second / 3600.0;
+    final hourAngle = RadialMath.hourToAngle(hourDec, is24h: is24h);
     final minuteAngle = ((minute + second / 60.0) / 60.0) * 2 * pi - pi / 2;
     final secondAngle = (second / 60.0) * 2 * pi - pi / 2;
 
@@ -426,6 +428,7 @@ class RadialClockPainter extends CustomPainter {
       old.blocks != blocks ||
       old.now.second != now.second ||
       old.now.minute != now.minute ||
+      old.now.hour != now.hour ||
       old.is24h != is24h ||
       old.isDark != isDark ||
       old.gestureStartAngle != gestureStartAngle ||
@@ -440,6 +443,7 @@ class RadialClockCanvas extends StatefulWidget {
   final List<TimeBlock> blocks;
   final double currentHour;
   final bool is24h;
+  final DateTime? now;
   final void Function(double startHour, double endHour) onGestureComplete;
   final void Function(String id)? onBlockTap;
 
@@ -448,6 +452,7 @@ class RadialClockCanvas extends StatefulWidget {
     required this.blocks,
     required this.currentHour,
     required this.is24h,
+    this.now,
     required this.onGestureComplete,
     this.onBlockTap,
   });
@@ -655,7 +660,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
                 size: size,
                 painter: RadialClockPainter(
                   blocks: widget.blocks,
-                  now: DateTime.now(),
+                  now: widget.now ?? DateTime.now(),
                   is24h: widget.is24h,
                   isDark: isDark,
                   gestureStartAngle: _gestureStartAngle,
