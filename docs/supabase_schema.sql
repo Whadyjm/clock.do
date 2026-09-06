@@ -79,3 +79,9 @@ CREATE POLICY "Los usuarios pueden actualizar sus propias tareas"
 CREATE POLICY "Los usuarios pueden eliminar sus propias tareas" 
     ON public.todos FOR DELETE 
     USING (auth.uid() = user_id);
+
+-- ==============================================================================
+-- Migración opcional para personalización de notificaciones por bloque:
+-- ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+-- ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER;
+-- ==============================================================================

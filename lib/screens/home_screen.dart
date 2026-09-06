@@ -898,14 +898,42 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    '${RadialMath.decimalHoursToString(block.startHour)} – '
-                    '${RadialMath.decimalHoursToString(block.endHour)}',
-                    style: const TextStyle(
-                      color: Color(0xFF9E98D4),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '${RadialMath.decimalHoursToString(block.startHour)} – '
+                        '${RadialMath.decimalHoursToString(block.endHour)}',
+                        style: const TextStyle(
+                          color: Color(0xFF9E98D4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (!block.notificationEnabled) ...[
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.notifications_off_outlined,
+                          size: 12,
+                          color: Color(0xFF9E98D4),
+                        ),
+                      ] else if (block.reminderMinutes != null) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.alarm_rounded,
+                          size: 12,
+                          color: block.category.color,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          block.reminderMinutes == 0 ? '0m' : '${block.reminderMinutes}m',
+                          style: TextStyle(
+                            color: block.category.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

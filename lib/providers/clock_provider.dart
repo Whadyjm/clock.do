@@ -180,14 +180,34 @@ class ClockProvider extends ChangeNotifier {
     _notifService.showTestNotification(minutesBefore: _reminderMinutesBefore);
   }
 
+  /// Devuelve los minutos de anticipación efectivos para un bloque.
+  int effectiveReminderMinutes(TimeBlock block) =>
+      block.reminderMinutes ?? _reminderMinutesBefore;
+
+  /// Indica si la notificación está efectivamente activa para el bloque.
+  bool isBlockNotificationActive(TimeBlock block) =>
+      _notificationsEnabled && block.notificationEnabled;
+
+  /// Programa o cancela la notificación de un bloque respetando su configuración individual y la global.
+  void _scheduleBlockNotification(TimeBlock block) {
+    if (!_notificationsEnabled || !block.notificationEnabled) {
+      _notifService.cancelTaskReminder(block.id);
+      return;
+    }
+    _notifService.scheduleTaskReminder(
+      block: block,
+      minutesBefore: effectiveReminderMinutes(block),
+      enabled: true,
+    );
+  }
+
   void _rescheduleAllNotifications() {
-    if (!_notificationsEnabled) return;
+    if (!_notificationsEnabled) {
+      _notifService.cancelAll();
+      return;
+    }
     for (final block in _blocks) {
-      _notifService.scheduleTaskReminder(
-        block: block,
-        minutesBefore: _reminderMinutesBefore,
-        enabled: _notificationsEnabled,
-      );
+      _scheduleBlockNotification(block);
     }
   }
 
@@ -359,11 +379,7 @@ class ClockProvider extends ChangeNotifier {
     _recalculateAllRings();
     _saveToStorage();
     _supabase.upsertTimeBlock(block);
-    _notifService.scheduleTaskReminder(
-      block: block,
-      minutesBefore: _reminderMinutesBefore,
-      enabled: _notificationsEnabled,
-    );
+    _scheduleBlockNotification(block);
     notifyListeners();
   }
 
@@ -374,11 +390,7 @@ class ClockProvider extends ChangeNotifier {
       _recalculateAllRings();
       _saveToStorage();
       _supabase.upsertTimeBlock(updated);
-      _notifService.scheduleTaskReminder(
-        block: updated,
-        minutesBefore: _reminderMinutesBefore,
-        enabled: _notificationsEnabled,
-      );
+      _scheduleBlockNotification(updated);
       notifyListeners();
     }
   }
@@ -406,11 +418,7 @@ class ClockProvider extends ChangeNotifier {
     if (nextStatus == TaskStatus.completed) {
       _notifService.cancelTaskReminder(id);
     } else {
-      _notifService.scheduleTaskReminder(
-        block: updated,
-        minutesBefore: _reminderMinutesBefore,
-        enabled: _notificationsEnabled,
-      );
+      _scheduleBlockNotification(updated);
     }
     notifyListeners();
   }

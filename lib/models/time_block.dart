@@ -44,6 +44,13 @@ class TimeBlock {
   /// 0 = anillo exterior, 1 = siguiente hacia adentro, etc.
   final int ringIndex;
 
+  /// Indica si las notificaciones están activadas para este bloque específico.
+  final bool notificationEnabled;
+
+  /// Minutos de anticipación específicos para este bloque.
+  /// Si es null, utiliza el valor global configurado en el sistema.
+  final int? reminderMinutes;
+
   TimeBlock({
     required this.id,
     required this.title,
@@ -54,6 +61,8 @@ class TimeBlock {
     this.category = TaskCategory.none,
     this.status = TaskStatus.pending,
     this.ringIndex = 0,
+    this.notificationEnabled = true,
+    this.reminderMinutes,
   }) : date = normalizeDate(date ?? DateTime.now());
 
   /// Constructor de fábrica para crear un nuevo TimeBlock con ID automático.
@@ -65,6 +74,8 @@ class TimeBlock {
     required double endHour,
     TaskCategory category = TaskCategory.none,
     TaskStatus status = TaskStatus.pending,
+    bool notificationEnabled = true,
+    int? reminderMinutes,
   }) {
     return TimeBlock(
       id: const Uuid().v4(),
@@ -76,6 +87,8 @@ class TimeBlock {
       category: category,
       status: status,
       ringIndex: 0,
+      notificationEnabled: notificationEnabled,
+      reminderMinutes: reminderMinutes,
     );
   }
 
@@ -110,6 +123,9 @@ class TimeBlock {
     TaskCategory? category,
     TaskStatus? status,
     int? ringIndex,
+    bool? notificationEnabled,
+    int? reminderMinutes,
+    bool clearReminderMinutes = false,
   }) {
     return TimeBlock(
       id: id,
@@ -121,6 +137,10 @@ class TimeBlock {
       category: category ?? this.category,
       status: status ?? this.status,
       ringIndex: ringIndex ?? this.ringIndex,
+      notificationEnabled: notificationEnabled ?? this.notificationEnabled,
+      reminderMinutes: clearReminderMinutes
+          ? null
+          : (reminderMinutes ?? this.reminderMinutes),
     );
   }
 
@@ -135,6 +155,8 @@ class TimeBlock {
         'category': category.index,
         'status': status.index,
         'ringIndex': ringIndex,
+        'notificationEnabled': notificationEnabled,
+        'reminderMinutes': reminderMinutes,
       };
 
   /// Serializa a Map en formato Postgres snake_case para Supabase.
@@ -147,6 +169,8 @@ class TimeBlock {
         'end_hour': endHour,
         'category': category.index,
         'status': status.index,
+        'notification_enabled': notificationEnabled,
+        'reminder_minutes': reminderMinutes,
       };
 
   /// Deserializa desde JSON.
@@ -163,6 +187,8 @@ class TimeBlock {
       category: TaskCategory.values[json['category'] as int],
       status: TaskStatus.values[json['status'] as int],
       ringIndex: json['ringIndex'] as int? ?? 0,
+      notificationEnabled: json['notificationEnabled'] as bool? ?? true,
+      reminderMinutes: json['reminderMinutes'] as int?,
     );
   }
 
@@ -182,6 +208,8 @@ class TimeBlock {
       status: TaskStatus.values[
           (map['status'] as int? ?? 0).clamp(0, TaskStatus.values.length - 1)],
       ringIndex: 0,
+      notificationEnabled: map['notification_enabled'] as bool? ?? true,
+      reminderMinutes: map['reminder_minutes'] as int?,
     );
   }
 

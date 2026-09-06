@@ -39,6 +39,8 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   late DateTime _selectedDate;
   late double _startHour;
   late double _endHour;
+  late bool _notificationEnabled;
+  late int? _reminderMinutes; // null = usar ajuste global predeterminado
 
   bool get _isEditing => widget.existingBlock != null;
 
@@ -56,6 +58,8 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     _endHour = block?.endHour ??
         widget.suggestedEndHour ??
         (_startHour + 1.0);
+    _notificationEnabled = block?.notificationEnabled ?? true;
+    _reminderMinutes = block?.reminderMinutes;
   }
 
   @override
@@ -83,6 +87,9 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         startHour: _startHour,
         endHour: _endHour,
         category: _selectedCategory,
+        notificationEnabled: _notificationEnabled,
+        reminderMinutes: _reminderMinutes,
+        clearReminderMinutes: _reminderMinutes == null,
       ));
     } else {
       provider.addBlock(TimeBlock.create(
@@ -92,6 +99,8 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         startHour: _startHour,
         endHour: _endHour,
         category: _selectedCategory,
+        notificationEnabled: _notificationEnabled,
+        reminderMinutes: _reminderMinutes,
       ));
     }
 
@@ -268,6 +277,10 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
             ),
             const SizedBox(height: 12),
             _buildCategorySelector(isDark),
+            const SizedBox(height: 22),
+
+            // Configuración de Notificación / Recordatorio
+            _buildNotificationSection(context, isDark, fieldFillColor, borderColor, textColor),
             const SizedBox(height: 26),
 
             // Botón animado y llamativo
@@ -526,5 +539,364 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         );
       }).toList(),
     );
+  }
+
+  Widget _buildNotificationSection(
+    BuildContext context,
+    bool isDark,
+    Color fieldFillColor,
+    Color borderColor,
+    Color textColor,
+  ) {
+    final provider = context.watch<ClockProvider>();
+    final globalMinutes = provider.reminderMinutesBefore;
+    final globalEnabled = provider.notificationsEnabled;
+
+    String subtitle;
+    if (!_notificationEnabled) {
+      subtitle = 'Silenciado para esta tarea';
+    } else if (_reminderMinutes == null) {
+      subtitle = 'Predeterminado (${globalMinutes == 0 ? "Al comenzar" : "$globalMinutes min antes"})';
+    } else if (_reminderMinutes == 0) {
+      subtitle = 'Al comenzar la tarea (en punto)';
+    } else if (_reminderMinutes == 60) {
+      subtitle = '1 hora antes del inicio';
+    } else {
+      subtitle = '$_reminderMinutes minutos antes del inicio';
+    }
+
+    final quickOptions = [null, 0, 5, 10, 15, 30, 60];
+    final isCustomOption =
+        _reminderMinutes != null && !quickOptions.contains(_reminderMinutes);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: fieldFillColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _notificationEnabled
+              ? _selectedCategory.color.withValues(alpha: 0.35)
+              : borderColor,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (_notificationEnabled
+                          ? _selectedCategory.color
+                          : const Color(0xFF9E98D4))
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _notificationEnabled
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_off_rounded,
+                  color: _notificationEnabled
+                      ? _selectedCategory.color
+                      : const Color(0xFF9E98D4),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'RECORDATORIO',
+                      style: TextStyle(
+                        color: _notificationEnabled
+                            ? _selectedCategory.color
+                            : const Color(0xFF9E98D4),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: _notificationEnabled,
+                activeColor: _selectedCategory.color,
+                onChanged: (val) {
+                  HapticFeedback.selectionClick();
+                  setState(() => _notificationEnabled = val);
+                },
+              ),
+            ],
+          ),
+          if (_notificationEnabled) ...[
+            const SizedBox(height: 14),
+            Divider(
+              height: 1,
+              color: isDark ? const Color(0xFF2A2D42) : const Color(0xFFE8E4FF),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'AVISARME CON ANTICIPACIÓN',
+              style: TextStyle(
+                color: Color(0xFF9E98D4),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildReminderChip(
+                  label: 'Global (${globalMinutes == 0 ? "0m" : "${globalMinutes}m"})',
+                  isSelected: _reminderMinutes == null,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _reminderMinutes = null);
+                  },
+                ),
+                _buildReminderChip(
+                  label: 'Al comenzar',
+                  isSelected: _reminderMinutes == 0,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _reminderMinutes = 0);
+                  },
+                ),
+                _buildReminderChip(
+                  label: '5 min',
+                  isSelected: _reminderMinutes == 5,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _reminderMinutes = 5);
+                  },
+                ),
+                _buildReminderChip(
+                  label: '10 min',
+                  isSelected: _reminderMinutes == 10,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _reminderMinutes = 10);
+                  },
+                ),
+                _buildReminderChip(
+                  label: '15 min',
+                  isSelected: _reminderMinutes == 15,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _reminderMinutes = 15);
+                  },
+                ),
+                _buildReminderChip(
+                  label: '30 min',
+                  isSelected: _reminderMinutes == 30,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _reminderMinutes = 30);
+                  },
+                ),
+                _buildReminderChip(
+                  label: '1 hora',
+                  isSelected: _reminderMinutes == 60,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _reminderMinutes = 60);
+                  },
+                ),
+                _buildReminderChip(
+                  label: isCustomOption ? '$_reminderMinutes min' : 'Otro...',
+                  isSelected: isCustomOption,
+                  icon: Icons.edit_calendar_rounded,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    _showCustomMinutesDialog(context);
+                  },
+                ),
+              ],
+            ),
+            if (!globalEnabled) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFA502).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFFFFA502).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFFFA502),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Los recordatorios globales están silenciados en Ajustes.',
+                        style: TextStyle(
+                          color: textColor.withValues(alpha: 0.8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReminderChip({
+    required String label,
+    required bool isSelected,
+    IconData? icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? _selectedCategory.color
+              : _selectedCategory.color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? _selectedCategory.color
+                : _selectedCategory.color.withValues(alpha: 0.2),
+            width: 1.2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: _selectedCategory.color.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 13,
+                color: isSelected ? Colors.white : _selectedCategory.color,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : _selectedCategory.color,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCustomMinutesDialog(BuildContext context) async {
+    final controller = TextEditingController(
+      text: _reminderMinutes != null && _reminderMinutes! > 0
+          ? _reminderMinutes.toString()
+          : '20',
+    );
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.tune_rounded, color: _selectedCategory.color, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Anticipación personalizada',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Indica con cuántos minutos antes de la hora de inicio deseas ser notificado:',
+                style: TextStyle(fontSize: 13, color: Color(0xFF9E98D4)),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
+                  labelText: 'Minutos antes',
+                  suffixText: 'min',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final val = int.tryParse(controller.text);
+                if (val != null && val >= 0) {
+                  Navigator.of(ctx).pop(val);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _selectedCategory.color,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null) {
+      setState(() {
+        _reminderMinutes = result;
+      });
+    }
   }
 }

@@ -233,7 +233,7 @@ class NotificationSettingsSheet extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Botón de Prueba
-            SizedBox(
+            /*SizedBox(
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
@@ -261,7 +261,7 @@ class NotificationSettingsSheet extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                 ),
               ),
-            ),
+            ),*/
           ],
         ),
       ),
