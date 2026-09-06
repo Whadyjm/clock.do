@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/task_category.dart';
 import '../models/time_block.dart';
 import '../models/todo_item.dart';
 import 'supabase_config.dart';
@@ -226,6 +227,68 @@ class SupabaseService {
           .eq('user_id', user.id);
     } catch (e) {
       debugPrint('[SupabaseService] Error al eliminar todo: $e');
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Base de Datos: Categorías Personalizadas
+  // ──────────────────────────────────────────────
+
+  /// Obtiene todas las categorías personalizadas del usuario desde Supabase
+  Future<List<TaskCategory>> fetchCategories() async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null) return [];
+
+    try {
+      final response = await supa
+          .from('categories')
+          .select()
+          .eq('user_id', user.id)
+          .order('created_at', ascending: true);
+
+      final List<TaskCategory> list = [];
+      for (final row in response) {
+        list.add(TaskCategory.fromSupabaseMap(Map<String, dynamic>.from(row)));
+      }
+      return list;
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al obtener categories: $e');
+      return [];
+    }
+  }
+
+  /// Inserta o actualiza una categoría personalizada
+  Future<void> upsertCategory(TaskCategory category) async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null || category.isDefault) return;
+
+    try {
+      final map = category.toSupabaseMap();
+      map['user_id'] = user.id;
+      map['updated_at'] = DateTime.now().toUtc().toIso8601String();
+
+      await supa.from('categories').upsert(map);
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al guardar category: $e');
+    }
+  }
+
+  /// Elimina una categoría personalizada
+  Future<void> deleteCategory(String categoryId) async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null) return;
+
+    try {
+      await supa
+          .from('categories')
+          .delete()
+          .eq('id', categoryId)
+          .eq('user_id', user.id);
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al eliminar category: $e');
     }
   }
 }

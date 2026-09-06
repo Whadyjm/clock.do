@@ -13,11 +13,13 @@ const _kTodoStorageKey = 'clockdo_todos';
 const _kThemeStorageKey = 'clockdo_theme_mode';
 const _kReminderMinutesKey = 'clockdo_reminder_minutes';
 const _kNotifEnabledKey = 'clockdo_notif_enabled';
+const _kCategoriesStorageKey = 'clockdo_custom_categories';
 
 /// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario, tareas ToDo y sincronización Supabase.
 class ClockProvider extends ChangeNotifier {
   final List<TimeBlock> _blocks = [];
   final List<TodoItem> _todoItems = [];
+  final List<TaskCategory> _customCategories = [];
   bool _is24h = false;
   ThemeMode _themeMode = ThemeMode.system;
   DateTime _now = DateTime.now();
@@ -88,6 +90,13 @@ class ClockProvider extends ChangeNotifier {
   int get reminderMinutesBefore => _reminderMinutesBefore;
 
   bool get notificationsEnabled => _notificationsEnabled;
+
+  /// Categorías personalizadas creadas por el usuario.
+  List<TaskCategory> get customCategories => List.unmodifiable(_customCategories);
+
+  /// Todas las categorías disponibles (fijas del sistema + personalizadas).
+  List<TaskCategory> get allCategories =>
+      [...TaskCategory.defaultCategories, ..._customCategories];
 
   bool get isViewingToday {
     final today = normalizeDate(_now);
@@ -314,6 +323,25 @@ class ClockProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // 0. Sincronizar categorías personalizadas
+      final cloudCategories = await _supabase.fetchCategories();
+      final catMap = <String, TaskCategory>{};
+      for (final c in _customCategories) {
+        catMap[c.id] = c;
+      }
+      for (final c in cloudCategories) {
+        catMap[c.id] = c;
+      }
+      final cloudCatIds = cloudCategories.map((c) => c.id).toSet();
+      for (final localCat in _customCategories) {
+        if (!cloudCatIds.contains(localCat.id)) {
+          await _supabase.upsertCategory(localCat);
+        }
+      }
+      _customCategories.clear();
+      _customCategories.addAll(catMap.values);
+      await _saveCategoriesToStorage();
+
       // 1. Sincronizar bloques de tiempo
       final cloudBlocks = await _supabase.fetchTimeBlocks();
       
@@ -567,6 +595,12 @@ class ClockProvider extends ChangeNotifier {
     await prefs.setString(_kThemeStorageKey, _themeMode.name);
   }
 
+  Future<void> _saveCategoriesToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = _customCategories.map((c) => jsonEncode(c.toJson())).toList();
+    await prefs.setStringList(_kCategoriesStorageKey, jsonList);
+  }
+
   Future<void> _saveToStorage() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = _blocks.map((b) => jsonEncode(b.toJson())).toList();
@@ -577,6 +611,49 @@ class ClockProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = _todoItems.map((t) => jsonEncode(t.toJson())).toList();
     await prefs.setStringList(_kTodoStorageKey, jsonList);
+  }
+
+  // ──────────────────────────────────────────────
+  // CRUD de Categorías Personalizadas
+  // ──────────────────────────────────────────────
+
+  void addCustomCategory(TaskCategory category) {
+    if (_customCategories.any((c) => c.id == category.id)) return;
+    _customCategories.add(category);
+    _saveCategoriesToStorage();
+    _supabase.upsertCategory(category);
+    notifyListeners();
+  }
+
+  void updateCustomCategory(TaskCategory updated) {
+    final idx = _customCategories.indexWhere((c) => c.id == updated.id);
+    if (idx != -1) {
+      _customCategories[idx] = updated;
+      _saveCategoriesToStorage();
+      _supabase.upsertCategory(updated);
+      notifyListeners();
+    }
+  }
+
+  void deleteCustomCategory(String categoryId) {
+    _customCategories.removeWhere((c) => c.id == categoryId);
+    for (var i = 0; i < _blocks.length; i++) {
+      if (_blocks[i].category.id == categoryId) {
+        _blocks[i] = _blocks[i].copyWith(category: TaskCategory.none);
+        _supabase.upsertTimeBlock(_blocks[i]);
+      }
+    }
+    for (var i = 0; i < _todoItems.length; i++) {
+      if (_todoItems[i].category.id == categoryId) {
+        _todoItems[i] = _todoItems[i].copyWith(category: TaskCategory.none);
+        _supabase.upsertTodo(_todoItems[i]);
+      }
+    }
+    _saveToStorage();
+    _saveTodosToStorage();
+    _saveCategoriesToStorage();
+    _supabase.deleteCategory(categoryId);
+    notifyListeners();
   }
 
   Future<void> _loadFromStorage() async {
@@ -602,12 +679,23 @@ class ClockProvider extends ChangeNotifier {
       }
     }
 
+    // Cargar Categorías Personalizadas primero (para que estén disponibles al deserializar bloques y todos)
+    final catJsonList = prefs.getStringList(_kCategoriesStorageKey) ?? [];
+    _customCategories.clear();
+    for (final json in catJsonList) {
+      try {
+        _customCategories.add(TaskCategory.fromJson(jsonDecode(json)));
+      } catch (_) {
+        // Ignorar categorías corruptas
+      }
+    }
+
     // Cargar Tareas del Reloj
     final jsonList = prefs.getStringList(_kStorageKey) ?? [];
     _blocks.clear();
     for (final json in jsonList) {
       try {
-        _blocks.add(TimeBlock.fromJson(jsonDecode(json)));
+        _blocks.add(TimeBlock.fromJson(jsonDecode(json), customCategories: _customCategories));
       } catch (_) {
         // Ignorar bloques corruptos
       }
@@ -620,7 +708,7 @@ class ClockProvider extends ChangeNotifier {
     _todoItems.clear();
     for (final json in todoJsonList) {
       try {
-        _todoItems.add(TodoItem.fromJson(jsonDecode(json)));
+        _todoItems.add(TodoItem.fromJson(jsonDecode(json), customCategories: _customCategories));
       } catch (_) {
         // Ignorar items corruptos
       }

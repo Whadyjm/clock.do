@@ -6,6 +6,7 @@ import '../models/time_block.dart';
 import '../models/task_category.dart';
 import '../providers/clock_provider.dart';
 import '../utils/radial_math.dart';
+import 'category_creator_dialog.dart';
 
 /// Bottom sheet con soporte completo de temas (Claro/Oscuro) para crear o editar tareas.
 class TaskFormSheet extends StatefulWidget {
@@ -487,57 +488,116 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   }
 
   Widget _buildCategorySelector(bool isDark) {
+    final provider = context.watch<ClockProvider>();
+    final categories = provider.allCategories;
+
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: TaskCategory.values.map((cat) {
-        final isSelected = cat == _selectedCategory;
-        return GestureDetector(
-          onTap: () {
+      children: [
+        ...categories.map((cat) {
+          final isSelected = cat == _selectedCategory;
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _selectedCategory = cat);
+            },
+            onLongPress: !cat.isDefault
+                ? () async {
+                    HapticFeedback.heavyImpact();
+                    final updated = await CategoryCreatorDialog.show(context, category: cat);
+                    if (context.mounted) {
+                      final prov = context.read<ClockProvider>();
+                      if (!prov.allCategories.any((c) => c.id == _selectedCategory.id)) {
+                        setState(() => _selectedCategory = TaskCategory.none);
+                      } else if (updated != null) {
+                        prov.updateCustomCategory(updated);
+                        if (_selectedCategory.id == cat.id) {
+                          setState(() => _selectedCategory = updated);
+                        }
+                      }
+                    }
+                  }
+                : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? cat.color
+                    : cat.color.withValues(alpha: isDark ? 0.15 : 0.1),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: cat.color.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    cat.icon,
+                    color: isSelected ? Colors.white : cat.color,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    cat.displayName,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : cat.color,
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+        // Botón para crear nueva categoría personalizada
+        GestureDetector(
+          onTap: () async {
             HapticFeedback.selectionClick();
-            setState(() => _selectedCategory = cat);
+            final created = await CategoryCreatorDialog.show(context);
+            if (created != null && context.mounted) {
+              context.read<ClockProvider>().addCustomCategory(created);
+              setState(() => _selectedCategory = created);
+            }
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
+          child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? cat.color
-                  : cat.color.withValues(alpha: isDark ? 0.15 : 0.1),
+              color: isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF0EEFF),
               borderRadius: BorderRadius.circular(20),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: cat.color.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
-                    ]
-                  : null,
+              border: Border.all(
+                color: const Color(0xFF6C5CE7).withValues(alpha: 0.4),
+                width: 1.5,
+              ),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  cat.icon,
-                  color: isSelected ? Colors.white : cat.color,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
+                Icon(Icons.add_rounded, color: Color(0xFF6C5CE7), size: 16),
+                SizedBox(width: 4),
                 Text(
-                  cat.displayName,
+                  'Nueva',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : cat.color,
+                    color: Color(0xFF6C5CE7),
                     fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      }).toList(),
+        ),
+      ],
     );
   }
 

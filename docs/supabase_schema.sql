@@ -81,7 +81,46 @@ CREATE POLICY "Los usuarios pueden eliminar sus propias tareas"
     USING (auth.uid() = user_id);
 
 -- ==============================================================================
--- Migración opcional para personalización de notificaciones por bloque:
--- ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN NOT NULL DEFAULT TRUE;
--- ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER;
+-- 6. Tabla de Categorías Personalizadas
 -- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.categories (
+    id TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color BIGINT NOT NULL,
+    icon_code_point INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_categories_user_id ON public.categories(user_id);
+
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Los usuarios pueden ver sus propias categorias" 
+    ON public.categories FOR SELECT 
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Los usuarios pueden insertar sus propias categorias" 
+    ON public.categories FOR INSERT 
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Los usuarios pueden actualizar sus propias categorias" 
+    ON public.categories FOR UPDATE 
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Los usuarios pueden eliminar sus propias categorias" 
+    ON public.categories FOR DELETE 
+    USING (auth.uid() = user_id);
+
+-- ==============================================================================
+-- Migraciones opcionales para time_blocks y todos:
+-- ==============================================================================
+-- 1. Notificaciones personalizadas por bloque
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER;
+
+-- 2. Referencia a categoría por ID (soporta categorías personalizadas)
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS category_id TEXT;
+ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS category_id TEXT;

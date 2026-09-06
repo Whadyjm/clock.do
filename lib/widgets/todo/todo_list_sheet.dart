@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/todo_item.dart';
 import '../../models/task_category.dart';
 import '../../providers/clock_provider.dart';
+import '../category_creator_dialog.dart';
 
 enum _TodoFilter { pending, completed, all }
 
@@ -130,7 +131,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: TaskCategory.values.map((c) {
+                      children: context.read<ClockProvider>().allCategories.map((c) {
                         final isSel = c == cat;
                         return GestureDetector(
                           onTap: () {
@@ -399,7 +400,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
                   HapticFeedback.selectionClick();
                   setState(() => _newCategory = cat);
                 },
-                itemBuilder: (ctx) => TaskCategory.values.map((cat) {
+                itemBuilder: (ctx) => context.read<ClockProvider>().allCategories.map((cat) {
                   return PopupMenuItem(
                     value: cat,
                     child: Row(
@@ -604,6 +605,9 @@ class _TodoListSheetState extends State<TodoListSheet> {
   // ──────────────────────────────────────────────
 
   Widget _buildCategoryFilterRow(bool isDark) {
+    final provider = context.watch<ClockProvider>();
+    final categories = provider.allCategories;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
@@ -619,7 +623,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
             isDark: isDark,
           ),
           const SizedBox(width: 6),
-          ...TaskCategory.values.map((cat) {
+          ...categories.map((cat) {
             final isSel = _selectedCategoryFilter == cat;
             return Padding(
               padding: const EdgeInsets.only(right: 6),
@@ -633,6 +637,19 @@ class _TodoListSheetState extends State<TodoListSheet> {
                     _selectedCategoryFilter = isSel ? null : cat;
                   });
                 },
+                onLongPress: !cat.isDefault
+                    ? () async {
+                        final updated = await CategoryCreatorDialog.show(context, category: cat);
+                        if (context.mounted) {
+                          final prov = context.read<ClockProvider>();
+                          if (!prov.allCategories.any((c) => c.id == _selectedCategoryFilter?.id)) {
+                            setState(() => _selectedCategoryFilter = null);
+                          } else if (updated != null) {
+                            prov.updateCustomCategory(updated);
+                          }
+                        }
+                      }
+                    : null,
                 isDark: isDark,
               ),
             );
@@ -648,6 +665,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
     required Color color,
     required bool isSelected,
     required VoidCallback onTap,
+    VoidCallback? onLongPress,
     required bool isDark,
   }) {
     return GestureDetector(
@@ -655,6 +673,12 @@ class _TodoListSheetState extends State<TodoListSheet> {
         HapticFeedback.selectionClick();
         onTap();
       },
+      onLongPress: onLongPress != null
+          ? () {
+              HapticFeedback.heavyImpact();
+              onLongPress();
+            }
+          : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

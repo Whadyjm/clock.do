@@ -64,6 +64,7 @@ class TodoItem {
         'title': title,
         'description': description,
         'category': category.index,
+        'categoryId': category.id,
         'isCompleted': isCompleted,
         'createdAt': createdAt.toIso8601String(),
         'completedAt': completedAt?.toIso8601String(),
@@ -75,20 +76,26 @@ class TodoItem {
         'title': title,
         'description': description,
         'category': category.index,
+        'category_id': category.id,
         'is_completed': isCompleted,
         'created_at': createdAt.toIso8601String(),
         'completed_at': completedAt?.toIso8601String(),
       };
 
   /// Deserializa desde JSON.
-  factory TodoItem.fromJson(Map<String, dynamic> json) {
+  factory TodoItem.fromJson(
+    Map<String, dynamic> json, {
+    List<TaskCategory> customCategories = const [],
+  }) {
     return TodoItem(
       id: json['id'] as String,
       title: json['title'] as String,
       description: json['description'] as String?,
-      category: json['category'] != null && json['category'] is int
-          ? TaskCategory.values[(json['category'] as int).clamp(0, TaskCategory.values.length - 1)]
-          : TaskCategory.none,
+      category: TaskCategory.fromIdOrIndex(
+        id: json['categoryId'] as String? ?? json['category_id'] as String?,
+        index: json['category'] as int?,
+        customCategories: customCategories,
+      ),
       isCompleted: json['isCompleted'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
@@ -100,14 +107,19 @@ class TodoItem {
   }
 
   /// Deserializa desde registro Supabase.
-  factory TodoItem.fromSupabaseMap(Map<String, dynamic> map) {
+  factory TodoItem.fromSupabaseMap(
+    Map<String, dynamic> map, {
+    List<TaskCategory> customCategories = const [],
+  }) {
     return TodoItem(
       id: map['id'] as String,
       title: map['title'] as String,
       description: map['description'] as String?,
-      category: map['category'] != null && map['category'] is int
-          ? TaskCategory.values[(map['category'] as int).clamp(0, TaskCategory.values.length - 1)]
-          : TaskCategory.none,
+      category: TaskCategory.fromIdOrIndex(
+        id: map['category_id'] as String?,
+        index: map['category'] as int?,
+        customCategories: customCategories,
+      ),
       isCompleted: map['is_completed'] as bool? ?? map['isCompleted'] as bool? ?? false,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()

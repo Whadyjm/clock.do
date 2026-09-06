@@ -153,6 +153,7 @@ class TimeBlock {
         'startHour': startHour,
         'endHour': endHour,
         'category': category.index,
+        'categoryId': category.id,
         'status': status.index,
         'ringIndex': ringIndex,
         'notificationEnabled': notificationEnabled,
@@ -168,13 +169,17 @@ class TimeBlock {
         'start_hour': startHour,
         'end_hour': endHour,
         'category': category.index,
+        'category_id': category.id,
         'status': status.index,
         'notification_enabled': notificationEnabled,
         'reminder_minutes': reminderMinutes,
       };
 
   /// Deserializa desde JSON.
-  factory TimeBlock.fromJson(Map<String, dynamic> json) {
+  factory TimeBlock.fromJson(
+    Map<String, dynamic> json, {
+    List<TaskCategory> customCategories = const [],
+  }) {
     return TimeBlock(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -184,7 +189,11 @@ class TimeBlock {
           : DateTime.now(),
       startHour: (json['startHour'] as num).toDouble(),
       endHour: (json['endHour'] as num).toDouble(),
-      category: TaskCategory.values[json['category'] as int],
+      category: TaskCategory.fromIdOrIndex(
+        id: json['categoryId'] as String? ?? json['category_id'] as String?,
+        index: json['category'] as int?,
+        customCategories: customCategories,
+      ),
       status: TaskStatus.values[json['status'] as int],
       ringIndex: json['ringIndex'] as int? ?? 0,
       notificationEnabled: json['notificationEnabled'] as bool? ?? true,
@@ -193,7 +202,10 @@ class TimeBlock {
   }
 
   /// Deserializa desde registro Supabase.
-  factory TimeBlock.fromSupabaseMap(Map<String, dynamic> map) {
+  factory TimeBlock.fromSupabaseMap(
+    Map<String, dynamic> map, {
+    List<TaskCategory> customCategories = const [],
+  }) {
     return TimeBlock(
       id: map['id'] as String,
       title: map['title'] as String,
@@ -203,8 +215,11 @@ class TimeBlock {
           : DateTime.now(),
       startHour: (map['start_hour'] as num? ?? map['startHour'] as num).toDouble(),
       endHour: (map['end_hour'] as num? ?? map['endHour'] as num).toDouble(),
-      category: TaskCategory.values[
-          (map['category'] as int? ?? 0).clamp(0, TaskCategory.values.length - 1)],
+      category: TaskCategory.fromIdOrIndex(
+        id: map['category_id'] as String?,
+        index: (map['category'] as int? ?? 0).clamp(0, TaskCategory.values.length - 1),
+        customCategories: customCategories,
+      ),
       status: TaskStatus.values[
           (map['status'] as int? ?? 0).clamp(0, TaskStatus.values.length - 1)],
       ringIndex: 0,
