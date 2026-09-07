@@ -187,4 +187,84 @@ void main() {
       expect(find.text('Código OTP (8 dígitos)'), findsOneWidget);
     });
   });
+
+  group('ClockProvider Session & Logout Management', () {
+    test('clearUserData purges user blocks, todos, categories and gamification while keeping external calendar blocks', () async {
+      final provider = ClockProvider();
+
+      // Agregar bloque regular del usuario
+      provider.addBlock(TimeBlock.create(
+        title: 'Tarea de Usuario A',
+        date: DateTime.now(),
+        startHour: 9.0,
+        endHour: 10.0,
+        category: TaskCategory.work,
+      ));
+
+      // Agregar bloque de calendario externo del dispositivo
+      provider.addBlock(TimeBlock.create(
+        title: 'Reunión Google Calendar',
+        date: DateTime.now(),
+        startHour: 11.0,
+        endHour: 12.0,
+        category: TaskCategory.personal,
+        isExternalCalendar: true,
+        externalCalendarName: 'trabajo@empresa.com',
+      ));
+
+      // Agregar un ToDo
+      provider.addTodo(TodoItem.create(title: 'Comprar café'));
+
+      // Agregar categoría personalizada
+      provider.addCustomCategory(TaskCategory(
+        id: 'cat_custom',
+        name: 'Custom',
+        color: const Color(0xFF123456),
+        icon: Icons.star,
+      ));
+
+      expect(provider.allBlocks.length, 2);
+      expect(provider.todoItems.length, 1);
+      expect(provider.customCategories.length, 1);
+
+      // Ejecutar clearUserData (equivalente al efecto de signOut)
+      await provider.clearUserData();
+
+      // Verificar que el bloque del usuario fue eliminado pero se preservó el del calendario nativo
+      expect(provider.allBlocks.length, 1);
+      expect(provider.allBlocks.first.isExternalCalendar, isTrue);
+      expect(provider.allBlocks.first.title, 'Reunión Google Calendar');
+
+      // Verificar que ToDos y categorías fueron eliminados
+      expect(provider.todoItems, isEmpty);
+      expect(provider.customCategories, isEmpty);
+      expect(provider.lastUserId, isNull);
+
+      // Verificar que SharedPreferences fue actualizado limpiamente
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey('clockdo_last_user_id'), isFalse);
+      expect(prefs.getStringList('clockdo_todos'), isEmpty);
+      expect(prefs.getStringList('clockdo_custom_categories'), isEmpty);
+    });
+
+    test('signOut method invokes Supabase signOut and clears user data', () async {
+      final provider = ClockProvider();
+      provider.addBlock(TimeBlock.create(
+        title: 'Bloque Privado',
+        date: DateTime.now(),
+        startHour: 14.0,
+        endHour: 15.0,
+        category: TaskCategory.learning,
+      ));
+
+      expect(provider.allBlocks.length, 1);
+
+      await provider.signOut();
+
+      expect(provider.allBlocks, isEmpty);
+      expect(provider.todoItems, isEmpty);
+      expect(provider.lastUserId, isNull);
+    });
+  });
 }
+

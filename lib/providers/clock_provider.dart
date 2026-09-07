@@ -10,6 +10,7 @@ import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import '../services/device_calendar_service.dart';
 import 'package:device_calendar/device_calendar.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _kStorageKey = 'clockdo_tasks';
 const _kTodoStorageKey = 'clockdo_todos';
@@ -21,6 +22,7 @@ const _kLocaleStorageKey = 'clockdo_locale';
 const _kGamificationStorageKey = 'clockdo_gamification';
 const _kDeviceCalSyncEnabledKey = 'clockdo_device_cal_sync_enabled';
 const _kSelectedDeviceCalIdsKey = 'clockdo_selected_device_cal_ids';
+const _kLastUserIdKey = 'clockdo_last_user_id';
 
 /// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario, tareas ToDo y sincronización Supabase.
 class ClockProvider extends ChangeNotifier {
@@ -34,6 +36,7 @@ class ClockProvider extends ChangeNotifier {
   DateTime _selectedDate = normalizeDate(DateTime.now());
   Timer? _clockTimer;
   StreamSubscription? _authSub;
+  String? _lastUserId;
 
   // ──────────────────────────────────────────────
   // Configuración de Supabase / Cloud Sync
@@ -43,6 +46,7 @@ class ClockProvider extends ChangeNotifier {
 
   bool get isCloudSyncing => _isCloudSyncing;
   bool get isUserLoggedIn => _supabase.isAuthenticated;
+  String? get lastUserId => _lastUserId;
   String? get userEmail => _supabase.currentUser?.email;
 
   // ──────────────────────────────────────────────
@@ -210,11 +214,27 @@ class ClockProvider extends ChangeNotifier {
     });
   }
 
-  /// Escucha cambios de sesión en Supabase y sincroniza
+  /// Escucha cambios de sesión en Supabase y sincroniza o limpia datos
   void _initSupabaseListener() {
-    _authSub = _supabase.authStateChanges?.listen((data) {
-      if (data.session != null) {
-        syncWithCloud();
+    final currentSupabaseUserId = _supabase.currentUser?.id;
+    if (currentSupabaseUserId != null) {
+      _lastUserId = currentSupabaseUserId;
+      _saveLastUserIdToStorage();
+    }
+
+    _authSub = _supabase.authStateChanges?.listen((data) async {
+      final currentUserId = data.session?.user.id;
+      if (data.session != null && currentUserId != null) {
+        // Si el usuario cambió (ej. inició sesión otro usuario sin pasar por signOut previo)
+        if (_lastUserId != null && _lastUserId != currentUserId) {
+          await clearUserData();
+        }
+        _lastUserId = currentUserId;
+        await _saveLastUserIdToStorage();
+        await syncWithCloud();
+      } else if (data.event == AuthChangeEvent.signedOut || (_lastUserId != null && currentUserId == null)) {
+        // El usuario activo cerró sesión
+        await clearUserData();
       } else {
         notifyListeners();
       }
@@ -448,19 +468,24 @@ class ClockProvider extends ChangeNotifier {
       // 1. Sincronizar bloques de tiempo
       final cloudBlocks = await _supabase.fetchTimeBlocks();
       
-      // Combinar bloques de nube y locales
+      // Combinar bloques de nube y locales (manteniendo eventos del calendario del dispositivo)
       final blockMap = <String, TimeBlock>{};
-      for (final b in _blocks) {
+      for (final b in _blocks.where((b) => b.isExternalCalendar)) {
         blockMap[b.id] = b;
       }
       for (final b in cloudBlocks) {
         blockMap[b.id] = b;
       }
+      for (final b in _blocks.where((b) => !b.isExternalCalendar)) {
+        if (!blockMap.containsKey(b.id)) {
+          blockMap[b.id] = b;
+        }
+      }
 
-      // Si teníamos bloques locales que no estaban en la nube, subirlos
+      // Si teníamos bloques locales que no estaban en la nube, subirlos (excepto si son del calendario del dispositivo)
       final cloudIds = cloudBlocks.map((b) => b.id).toSet();
       for (final localBlock in _blocks) {
-        if (!cloudIds.contains(localBlock.id)) {
+        if (!cloudIds.contains(localBlock.id) && !localBlock.isExternalCalendar) {
           await _supabase.upsertTimeBlock(localBlock);
         }
       }
@@ -497,23 +522,29 @@ class ClockProvider extends ChangeNotifier {
       // 3. Sincronizar Gamificación
       final cloudGamification = await _supabase.fetchGamification();
       if (cloudGamification != null) {
-        final mergedAchievements = Map<String, DateTime>.from(_gamification.unlockedAchievements);
-        cloudGamification.unlockedAchievements.forEach((k, v) {
-          if (!mergedAchievements.containsKey(k) || v.isBefore(mergedAchievements[k]!)) {
-            mergedAchievements[k] = v;
-          }
-        });
+        if (_gamification.ticks == 0 &&
+            _gamification.totalCompletedTasks == 0 &&
+            _gamification.unlockedAchievements.isEmpty) {
+          _gamification = cloudGamification;
+        } else {
+          final mergedAchievements = Map<String, DateTime>.from(_gamification.unlockedAchievements);
+          cloudGamification.unlockedAchievements.forEach((k, v) {
+            if (!mergedAchievements.containsKey(k) || v.isBefore(mergedAchievements[k]!)) {
+              mergedAchievements[k] = v;
+            }
+          });
 
-        _gamification = _gamification.copyWith(
-          ticks: _gamification.ticks > cloudGamification.ticks ? _gamification.ticks : cloudGamification.ticks,
-          currentStreak: _gamification.currentStreak > cloudGamification.currentStreak ? _gamification.currentStreak : cloudGamification.currentStreak,
-          bestStreak: _gamification.bestStreak > cloudGamification.bestStreak ? _gamification.bestStreak : cloudGamification.bestStreak,
-          streakFreezeCount: _gamification.streakFreezeCount > cloudGamification.streakFreezeCount ? _gamification.streakFreezeCount : cloudGamification.streakFreezeCount,
-          totalCompletedTasks: _gamification.totalCompletedTasks > cloudGamification.totalCompletedTasks ? _gamification.totalCompletedTasks : cloudGamification.totalCompletedTasks,
-          totalFocusMinutes: _gamification.totalFocusMinutes > cloudGamification.totalFocusMinutes ? _gamification.totalFocusMinutes : cloudGamification.totalFocusMinutes,
-          unlockedAchievements: mergedAchievements,
-          lastActiveDate: _gamification.lastActiveDate ?? cloudGamification.lastActiveDate,
-        );
+          _gamification = _gamification.copyWith(
+            ticks: _gamification.ticks > cloudGamification.ticks ? _gamification.ticks : cloudGamification.ticks,
+            currentStreak: _gamification.currentStreak > cloudGamification.currentStreak ? _gamification.currentStreak : cloudGamification.currentStreak,
+            bestStreak: _gamification.bestStreak > cloudGamification.bestStreak ? _gamification.bestStreak : cloudGamification.bestStreak,
+            streakFreezeCount: _gamification.streakFreezeCount > cloudGamification.streakFreezeCount ? _gamification.streakFreezeCount : cloudGamification.streakFreezeCount,
+            totalCompletedTasks: _gamification.totalCompletedTasks > cloudGamification.totalCompletedTasks ? _gamification.totalCompletedTasks : cloudGamification.totalCompletedTasks,
+            totalFocusMinutes: _gamification.totalFocusMinutes > cloudGamification.totalFocusMinutes ? _gamification.totalFocusMinutes : cloudGamification.totalFocusMinutes,
+            unlockedAchievements: mergedAchievements,
+            lastActiveDate: _gamification.lastActiveDate ?? cloudGamification.lastActiveDate,
+          );
+        }
       }
       await _saveGamificationToStorage();
       await _supabase.upsertGamification(_gamification);
@@ -523,6 +554,55 @@ class ClockProvider extends ChangeNotifier {
       _isCloudSyncing = false;
       notifyListeners();
     }
+  }
+
+  /// Cierra sesión en Supabase y limpia todas las tareas y datos del usuario de la UI y del almacenamiento local.
+  Future<void> signOut() async {
+    // 1. Intentar sincronizar datos pendientes con la nube antes de salir
+    if (_supabase.isAuthenticated) {
+      try {
+        await syncWithCloud();
+      } catch (e) {
+        debugPrint('[ClockProvider] Error al sincronizar antes de cerrar sesión: $e');
+      }
+    }
+
+    // 2. Cerrar sesión en el cliente de Supabase
+    await _supabase.signOut();
+
+    // 3. Limpiar los datos del usuario de memoria y de SharedPreferences
+    await clearUserData();
+  }
+
+  /// Limpia las tareas, bloques, notas ToDo, categorías personalizadas y datos de gamificación
+  /// asociados al usuario que cerró sesión, manteniendo intactos los calendarios nativos del dispositivo
+  /// y las preferencias de la app (tema, idioma).
+  Future<void> clearUserData() async {
+    _lastUserId = null;
+    await _saveLastUserIdToStorage();
+
+    // Eliminar bloques creados por el usuario (conservar eventos de calendario del dispositivo)
+    _blocks.removeWhere((b) => !b.isExternalCalendar);
+    _recalculateAllRings();
+    await _saveToStorage();
+
+    // Limpiar ToDos
+    _todoItems.clear();
+    await _saveTodosToStorage();
+
+    // Limpiar categorías personalizadas
+    _customCategories.clear();
+    await _saveCategoriesToStorage();
+
+    // Reiniciar gamificación al estado base
+    _gamification = const GamificationData();
+    await _saveGamificationToStorage();
+
+    // Cancelar todas las notificaciones programadas y reprogramar solo si queda algún evento del dispositivo
+    await _notifService.cancelAll();
+    _rescheduleAllNotifications();
+
+    notifyListeners();
   }
 
   // ──────────────────────────────────────────────
@@ -755,6 +835,15 @@ class ClockProvider extends ChangeNotifier {
     await prefs.setStringList(_kSelectedDeviceCalIdsKey, _selectedDeviceCalendarIds);
   }
 
+  Future<void> _saveLastUserIdToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_lastUserId == null) {
+      await prefs.remove(_kLastUserIdKey);
+    } else {
+      await prefs.setString(_kLastUserIdKey, _lastUserId!);
+    }
+  }
+
   // ──────────────────────────────────────────────
   // Sincronización de Calendarios del Dispositivo
   // ──────────────────────────────────────────────
@@ -905,6 +994,11 @@ class ClockProvider extends ChangeNotifier {
 
   Future<void> _loadFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Cargar último ID de usuario autenticado
+    if (prefs.containsKey(_kLastUserIdKey)) {
+      _lastUserId = prefs.getString(_kLastUserIdKey);
+    }
 
     // Cargar Recordatorios Globales
     if (prefs.containsKey(_kReminderMinutesKey)) {

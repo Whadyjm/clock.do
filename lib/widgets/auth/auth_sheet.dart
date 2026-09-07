@@ -268,31 +268,35 @@ class _AuthSheetState extends State<AuthSheet> {
   }
 
   Future<void> _handleSignOut() async {
+    final l10n = AppLocalizations.of(context);
+    final isSpanish = Localizations.localeOf(context).languageCode == 'es';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar Sesión'),
-        content: const Text(
-          '¿Estás seguro de que deseas cerrar sesión? Tus datos locales se conservarán en este dispositivo.',
+        title: Text(l10n.signOutButton),
+        content: Text(
+          isSpanish
+              ? '¿Estás seguro de que deseas cerrar sesión? Tus tareas en la nube permanecerán guardadas de forma segura en tu cuenta.'
+              : 'Are you sure you want to sign out? Your cloud data will remain safely stored in your account.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(isSpanish ? 'Cancelar' : 'Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF7675),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Cerrar Sesión'),
+            child: Text(l10n.signOutButton),
           ),
         ],
       ),
     );
 
     if (confirmed == true && mounted) {
-      await SupabaseService().signOut();
+      await context.read<ClockProvider>().signOut();
       if (mounted) {
         setState(() {});
       }
@@ -638,27 +642,6 @@ class _AuthSheetState extends State<AuthSheet> {
 
         const SizedBox(height: 10),
 
-        // Botón Cambiar Contraseña
-        /*OutlinedButton.icon(
-          onPressed: () => _showChangePasswordDialog(context),
-          icon: const Icon(Icons.lock_reset_rounded, size: 18, color: Color(0xFF6C5CE7)),
-          label: Text(
-            AppLocalizations.of(context).changePasswordButton,
-            style: const TextStyle(
-              color: Color(0xFF6C5CE7),
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFF6C5CE7), width: 1.2),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-        ),*/
-        // Botón Cerrar Sesión
         OutlinedButton.icon(
           onPressed: _handleSignOut,
           icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFFFF7675)),
