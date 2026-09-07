@@ -260,11 +260,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get resetPasswordTitle => 'Set New Password';
   @override
-  String get resetPasswordSubtitle => 'Enter the 6-digit OTP code sent to your email and set your new password.';
+  String get resetPasswordSubtitle => 'Enter the 8-digit OTP code sent to your email and set your new password.';
   @override
-  String get otpCodeLabel => 'OTP Code (6 digits)';
+  String get otpCodeLabel => 'OTP Code (8 digits)';
   @override
-  String get otpCodeHint => 'e.g. 123456';
+  String get otpCodeHint => 'e.g. 12345678';
   @override
   String get newPasswordLabel => 'New Password';
   @override

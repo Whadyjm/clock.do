@@ -165,7 +165,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Restablecer Contraseña'), findsNWidgets(2));
-      expect(find.text('Código OTP (6 dígitos)'), findsOneWidget);
+      expect(find.text('Código OTP (8 dígitos)'), findsOneWidget);
       expect(find.text('Nueva Contraseña'), findsOneWidget);
 
       await tester.tap(find.text('Volver a Iniciar Sesión'));
@@ -184,7 +184,7 @@ void main() {
 
       expect(find.text('Restablecer Contraseña'), findsNWidgets(2));
       expect(find.text('user@example.com'), findsOneWidget);
-      expect(find.text('Código OTP (6 dígitos)'), findsOneWidget);
+      expect(find.text('Código OTP (8 dígitos)'), findsOneWidget);
     });
   });
 }

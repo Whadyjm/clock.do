@@ -639,7 +639,7 @@ class _AuthSheetState extends State<AuthSheet> {
         const SizedBox(height: 10),
 
         // Botón Cambiar Contraseña
-        OutlinedButton.icon(
+        /*OutlinedButton.icon(
           onPressed: () => _showChangePasswordDialog(context),
           icon: const Icon(Icons.lock_reset_rounded, size: 18, color: Color(0xFF6C5CE7)),
           label: Text(
@@ -657,10 +657,7 @@ class _AuthSheetState extends State<AuthSheet> {
               borderRadius: BorderRadius.circular(16),
             ),
           ),
-        ),
-
-        const SizedBox(height: 10),
-
+        ),*/
         // Botón Cerrar Sesión
         OutlinedButton.icon(
           onPressed: _handleSignOut,

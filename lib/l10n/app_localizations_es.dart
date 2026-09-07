@@ -260,9 +260,9 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get resetPasswordTitle => 'Restablecer Contraseña';
   @override
-  String get resetPasswordSubtitle => 'Ingresa el código OTP de 6 dígitos que enviamos a tu correo y define tu nueva contraseña.';
+  String get resetPasswordSubtitle => 'Ingresa el código OTP de 8 dígitos que enviamos a tu correo y define tu nueva contraseña.';
   @override
-  String get otpCodeLabel => 'Código OTP (6 dígitos)';
+  String get otpCodeLabel => 'Código OTP (8 dígitos)';
   @override
   String get otpCodeHint => 'Ej: 123456';
   @override
