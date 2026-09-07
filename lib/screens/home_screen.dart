@@ -835,7 +835,10 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 3,
                     children: [
                       Text(
                         block.isPointInTime
@@ -848,8 +851,7 @@ class _HomeScreenState extends State<HomeScreen>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (block.isPointInTime) ...[
-                        const SizedBox(width: 6),
+                      if (block.isPointInTime)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                           decoration: BoxDecoration(
@@ -876,31 +878,64 @@ class _HomeScreenState extends State<HomeScreen>
                             ],
                           ),
                         ),
-                      ],
-                      if (!block.notificationEnabled) ...[
-                        const SizedBox(width: 6),
+                      if (block.isExternalCalendar)
+                        Container(
+                          constraints: const BoxConstraints(maxWidth: 110),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.event_available_rounded,
+                                size: 9,
+                                color: Color(0xFF6C5CE7),
+                              ),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  block.externalCalendarName ?? context.l10n.deviceCalendarBadge,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF6C5CE7),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!block.notificationEnabled)
                         const Icon(
                           Icons.notifications_off_outlined,
                           size: 12,
                           color: Color(0xFF9E98D4),
+                        )
+                      else if (block.reminderMinutes != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.alarm_rounded,
+                              size: 12,
+                              color: block.category.color,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              block.reminderMinutes == 0 ? '0m' : '${block.reminderMinutes}m',
+                              style: TextStyle(
+                                color: block.category.color,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
-                      ] else if (block.reminderMinutes != null) ...[
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.alarm_rounded,
-                          size: 12,
-                          color: block.category.color,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          block.reminderMinutes == 0 ? '0m' : '${block.reminderMinutes}m',
-                          style: TextStyle(
-                            color: block.category.color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ],

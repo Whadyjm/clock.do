@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/clock_provider.dart';
 import '../../l10n/app_localizations.dart';
+import 'device_calendar_sheet.dart';
 
 /// Modal integral de Ajustes para Clock.Do.
 /// Permite configurar:
@@ -162,6 +163,16 @@ class AppSettingsSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   _buildNotificationSettings(context, provider, isDark, sectionBg, borderColor, textColor),
+
+                  const SizedBox(height: 22),
+
+                  // ── SECCIÓN 4: CALENDARIOS DEL DISPOSITIVO ──────
+                  _buildSectionHeader(
+                    title: l10n.deviceCalendarSettingsTitle,
+                    icon: Icons.calendar_month_outlined,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildDeviceCalendarTile(context, provider, isDark, sectionBg, borderColor, textColor),
 
                   const SizedBox(height: 24),
 
@@ -593,6 +604,95 @@ class AppSettingsSheet extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // 4. Calendarios del Dispositivo
+  // ──────────────────────────────────────────────
+  Widget _buildDeviceCalendarTile(
+    BuildContext context,
+    ClockProvider provider,
+    bool isDark,
+    Color sectionBg,
+    Color borderColor,
+    Color textColor,
+  ) {
+    final l10n = context.l10n;
+    final isSyncEnabled = provider.deviceCalendarSyncEnabled;
+    final selectedCount = provider.selectedDeviceCalendarIds.length;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => DeviceCalendarSheet.show(context),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: sectionBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSyncEnabled
+                  ? const Color(0xFF6C5CE7).withValues(alpha: 0.5)
+                  : borderColor,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isSyncEnabled
+                        ? [const Color(0xFF6C5CE7), const Color(0xFF00CEC9)]
+                        : [const Color(0xFF9E98D4), const Color(0xFF636E72)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.sync_rounded, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.deviceCalendarSettingsTitle,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isSyncEnabled
+                          ? l10n.deviceCalendarLinkedCount(selectedCount)
+                          : l10n.deviceCalendarStatusDisabled,
+                      style: TextStyle(
+                        color: isSyncEnabled
+                            ? const Color(0xFF00B894)
+                            : textColor.withValues(alpha: 0.55),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: textColor.withValues(alpha: 0.4),
+                size: 22,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -66,6 +66,15 @@ class TimeBlock {
   /// Si es null, utiliza el valor global configurado en el sistema.
   final int? reminderMinutes;
 
+  /// Indica si el evento proviene de un calendario del dispositivo (Google, iCloud, etc.).
+  final bool isExternalCalendar;
+
+  /// ID del evento en el calendario nativo del dispositivo (evita duplicados).
+  final String? externalEventId;
+
+  /// Nombre del calendario de origen (ej: "Trabajo", "Google", "Personal").
+  final String? externalCalendarName;
+
   /// Indica si es una tarea puntual en una hora específica sin hora/fecha fin.
   bool get isPointInTime => endHour == null;
 
@@ -81,6 +90,9 @@ class TimeBlock {
     this.ringIndex = 0,
     this.notificationEnabled = true,
     this.reminderMinutes,
+    this.isExternalCalendar = false,
+    this.externalEventId,
+    this.externalCalendarName,
   }) : date = normalizeDate(date ?? DateTime.now());
 
   /// Constructor de fábrica para crear un nuevo TimeBlock con ID automático.
@@ -94,6 +106,9 @@ class TimeBlock {
     TaskStatus status = TaskStatus.pending,
     bool notificationEnabled = true,
     int? reminderMinutes,
+    bool isExternalCalendar = false,
+    String? externalEventId,
+    String? externalCalendarName,
   }) {
     return TimeBlock(
       id: const Uuid().v4(),
@@ -107,6 +122,9 @@ class TimeBlock {
       ringIndex: 0,
       notificationEnabled: notificationEnabled,
       reminderMinutes: reminderMinutes,
+      isExternalCalendar: isExternalCalendar,
+      externalEventId: externalEventId,
+      externalCalendarName: externalCalendarName,
     );
   }
 
@@ -157,6 +175,9 @@ class TimeBlock {
     bool? notificationEnabled,
     int? reminderMinutes,
     bool clearReminderMinutes = false,
+    bool? isExternalCalendar,
+    String? externalEventId,
+    String? externalCalendarName,
   }) {
     return TimeBlock(
       id: id,
@@ -172,6 +193,9 @@ class TimeBlock {
       reminderMinutes: clearReminderMinutes
           ? null
           : (reminderMinutes ?? this.reminderMinutes),
+      isExternalCalendar: isExternalCalendar ?? this.isExternalCalendar,
+      externalEventId: externalEventId ?? this.externalEventId,
+      externalCalendarName: externalCalendarName ?? this.externalCalendarName,
     );
   }
 
@@ -189,6 +213,9 @@ class TimeBlock {
         'ringIndex': ringIndex,
         'notificationEnabled': notificationEnabled,
         'reminderMinutes': reminderMinutes,
+        'isExternalCalendar': isExternalCalendar,
+        'externalEventId': externalEventId,
+        'externalCalendarName': externalCalendarName,
       };
 
   /// Serializa a Map en formato Postgres snake_case para Supabase.
@@ -204,6 +231,9 @@ class TimeBlock {
         'status': status.index,
         'notification_enabled': notificationEnabled,
         'reminder_minutes': reminderMinutes,
+        'is_external_calendar': isExternalCalendar,
+        'external_event_id': externalEventId,
+        'external_calendar_name': externalCalendarName,
       };
 
   /// Deserializa desde JSON.
@@ -229,6 +259,9 @@ class TimeBlock {
       ringIndex: json['ringIndex'] as int? ?? 0,
       notificationEnabled: json['notificationEnabled'] as bool? ?? true,
       reminderMinutes: json['reminderMinutes'] as int?,
+      isExternalCalendar: json['isExternalCalendar'] as bool? ?? false,
+      externalEventId: json['externalEventId'] as String?,
+      externalCalendarName: json['externalCalendarName'] as String?,
     );
   }
 
@@ -256,6 +289,9 @@ class TimeBlock {
       ringIndex: 0,
       notificationEnabled: map['notification_enabled'] as bool? ?? true,
       reminderMinutes: map['reminder_minutes'] as int?,
+      isExternalCalendar: (map['is_external_calendar'] ?? map['isExternalCalendar']) as bool? ?? false,
+      externalEventId: (map['external_event_id'] ?? map['externalEventId']) as String?,
+      externalCalendarName: (map['external_calendar_name'] ?? map['externalCalendarName']) as String?,
     );
   }
 

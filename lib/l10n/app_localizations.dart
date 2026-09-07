@@ -274,6 +274,22 @@ abstract class AppLocalizations {
   String get badgeCleanSlateDesc;
   String get badgeBalancedLifeTitle;
   String get badgeBalancedLifeDesc;
+
+  // ── Calendarios del Dispositivo ──
+  String get deviceCalendarSettingsTitle;
+  String get deviceCalendarSettingsSubtitle;
+  String get deviceCalendarSyncToggle;
+  String get deviceCalendarSyncDesc;
+  String get deviceCalendarPermissionsRequired;
+  String get deviceCalendarGrantPermission;
+  String get deviceCalendarNoCalendarsFound;
+  String get deviceCalendarSelectCalendars;
+  String get deviceCalendarSyncNow;
+  String deviceCalendarSyncedCount(int count);
+  String get deviceCalendarBadge;
+  String get deviceCalendarStatusEnabled;
+  String get deviceCalendarStatusDisabled;
+  String deviceCalendarLinkedCount(int count);
 }
 
 class _AppLocalizationsDelegate

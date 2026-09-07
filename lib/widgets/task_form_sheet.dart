@@ -216,6 +216,37 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                     letterSpacing: -0.5,
                   ),
                 ),
+                if (widget.existingBlock?.isExternalCalendar == true) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 130),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.event_available_rounded, size: 12, color: Color(0xFF6C5CE7)),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            widget.existingBlock?.externalCalendarName ?? l10n.deviceCalendarBadge,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF6C5CE7),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 if (_isEditing)
                   IconButton(

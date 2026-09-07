@@ -452,4 +452,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get badgeBalancedLifeTitle => 'Balanced Life';
   @override
   String get badgeBalancedLifeDesc => 'Complete blocks from at least 3 different categories in a day';
+
+  // ── Device Calendars ──
+  @override
+  String get deviceCalendarSettingsTitle => 'Device Calendars';
+  @override
+  String get deviceCalendarSettingsSubtitle => 'Sync events from Google, iCloud, and Outlook';
+  @override
+  String get deviceCalendarSyncToggle => 'Sync device events';
+  @override
+  String get deviceCalendarSyncDesc => 'Automatically display your external events on Clock.Do\'s radial dial.';
+  @override
+  String get deviceCalendarPermissionsRequired => 'Calendar access permissions are required to sync your events.';
+  @override
+  String get deviceCalendarGrantPermission => 'Grant Permissions';
+  @override
+  String get deviceCalendarNoCalendarsFound => 'No calendars found on this device.';
+  @override
+  String get deviceCalendarSelectCalendars => 'Select calendars to include';
+  @override
+  String get deviceCalendarSyncNow => 'Sync Now';
+  @override
+  String deviceCalendarSyncedCount(int count) => count == 1 ? '1 event synced' : '$count events synced';
+  @override
+  String get deviceCalendarBadge => 'Calendar';
+  @override
+  String get deviceCalendarStatusEnabled => 'Sync enabled';
+  @override
+  String get deviceCalendarStatusDisabled => 'Disabled';
+  @override
+  String deviceCalendarLinkedCount(int count) => count == 1 ? '1 calendar linked' : '$count calendars linked';
 }

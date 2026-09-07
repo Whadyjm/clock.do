@@ -8,6 +8,8 @@ import '../models/todo_item.dart';
 import '../models/gamification_data.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
+import '../services/device_calendar_service.dart';
+import 'package:device_calendar/device_calendar.dart';
 
 const _kStorageKey = 'clockdo_tasks';
 const _kTodoStorageKey = 'clockdo_todos';
@@ -17,6 +19,8 @@ const _kNotifEnabledKey = 'clockdo_notif_enabled';
 const _kCategoriesStorageKey = 'clockdo_custom_categories';
 const _kLocaleStorageKey = 'clockdo_locale';
 const _kGamificationStorageKey = 'clockdo_gamification';
+const _kDeviceCalSyncEnabledKey = 'clockdo_device_cal_sync_enabled';
+const _kSelectedDeviceCalIdsKey = 'clockdo_selected_device_cal_ids';
 
 /// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario, tareas ToDo y sincronización Supabase.
 class ClockProvider extends ChangeNotifier {
@@ -40,6 +44,20 @@ class ClockProvider extends ChangeNotifier {
   bool get isCloudSyncing => _isCloudSyncing;
   bool get isUserLoggedIn => _supabase.isAuthenticated;
   String? get userEmail => _supabase.currentUser?.email;
+
+  // ──────────────────────────────────────────────
+  // Configuración de Calendarios del Dispositivo
+  // ──────────────────────────────────────────────
+  final DeviceCalendarService _deviceCalService = DeviceCalendarService();
+  bool _deviceCalendarSyncEnabled = false;
+  List<String> _selectedDeviceCalendarIds = [];
+  List<Calendar> _availableDeviceCalendars = [];
+  bool _isDeviceCalendarSyncing = false;
+
+  bool get deviceCalendarSyncEnabled => _deviceCalendarSyncEnabled;
+  List<String> get selectedDeviceCalendarIds => List.unmodifiable(_selectedDeviceCalendarIds);
+  List<Calendar> get availableDeviceCalendars => List.unmodifiable(_availableDeviceCalendars);
+  bool get isDeviceCalendarSyncing => _isDeviceCalendarSyncing;
 
   // ──────────────────────────────────────────────
   // Configuración Global de Notificaciones
@@ -347,21 +365,33 @@ class ClockProvider extends ChangeNotifier {
 
   void selectDate(DateTime date) {
     _selectedDate = normalizeDate(date);
+    if (_deviceCalendarSyncEnabled) {
+      syncDeviceCalendarEvents(date: _selectedDate);
+    }
     notifyListeners();
   }
 
   void jumpToToday() {
     _selectedDate = normalizeDate(DateTime.now());
+    if (_deviceCalendarSyncEnabled) {
+      syncDeviceCalendarEvents(date: _selectedDate);
+    }
     notifyListeners();
   }
 
   void nextDay() {
     _selectedDate = _selectedDate.add(const Duration(days: 1));
+    if (_deviceCalendarSyncEnabled) {
+      syncDeviceCalendarEvents(date: _selectedDate);
+    }
     notifyListeners();
   }
 
   void previousDay() {
     _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+    if (_deviceCalendarSyncEnabled) {
+      syncDeviceCalendarEvents(date: _selectedDate);
+    }
     notifyListeners();
   }
 
@@ -719,6 +749,117 @@ class ClockProvider extends ChangeNotifier {
     await prefs.setString(_kGamificationStorageKey, jsonEncode(_gamification.toJson()));
   }
 
+  Future<void> _saveDeviceCalendarSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kDeviceCalSyncEnabledKey, _deviceCalendarSyncEnabled);
+    await prefs.setStringList(_kSelectedDeviceCalIdsKey, _selectedDeviceCalendarIds);
+  }
+
+  // ──────────────────────────────────────────────
+  // Sincronización de Calendarios del Dispositivo
+  // ──────────────────────────────────────────────
+
+  /// Carga la lista de calendarios disponibles desde el dispositivo.
+  Future<List<Calendar>> loadDeviceCalendars() async {
+    _availableDeviceCalendars = await _deviceCalService.getCalendars();
+    // Si no hay ninguno seleccionado previamente y se encuentran calendarios, seleccionar todos por defecto
+    if (_selectedDeviceCalendarIds.isEmpty && _availableDeviceCalendars.isNotEmpty) {
+      _selectedDeviceCalendarIds = _availableDeviceCalendars
+          .where((c) => c.id != null)
+          .map((c) => c.id!)
+          .toList();
+      await _saveDeviceCalendarSettings();
+    }
+    notifyListeners();
+    return _availableDeviceCalendars;
+  }
+
+  /// Activa o desactiva la sincronización con los calendarios del dispositivo.
+  Future<void> setDeviceCalendarSyncEnabled(bool enabled) async {
+    _deviceCalendarSyncEnabled = enabled;
+    await _saveDeviceCalendarSettings();
+    if (enabled) {
+      await loadDeviceCalendars();
+      await syncDeviceCalendarEvents(date: _selectedDate);
+    }
+    notifyListeners();
+  }
+
+  /// Alterna la selección de un calendario por su ID.
+  Future<void> toggleDeviceCalendarSelection(String calendarId) async {
+    if (_selectedDeviceCalendarIds.contains(calendarId)) {
+      _selectedDeviceCalendarIds.remove(calendarId);
+    } else {
+      _selectedDeviceCalendarIds.add(calendarId);
+    }
+    await _saveDeviceCalendarSettings();
+    if (_deviceCalendarSyncEnabled) {
+      await syncDeviceCalendarEvents(date: _selectedDate);
+    }
+    notifyListeners();
+  }
+
+  /// Sincroniza eventos de los calendarios del dispositivo para un rango de fechas (-7 días a +30 días).
+  Future<int> syncDeviceCalendarEvents({DateTime? date}) async {
+    if (_isDeviceCalendarSyncing) return 0;
+    final centerDate = normalizeDate(date ?? _selectedDate);
+
+    // Si la lista de calendarios está vacía, intentar cargarlos
+    if (_availableDeviceCalendars.isEmpty) {
+      await loadDeviceCalendars();
+    }
+    if (_selectedDeviceCalendarIds.isEmpty) {
+      debugPrint('[ClockProvider] No hay calendarios de dispositivo seleccionados.');
+      return 0;
+    }
+
+    _isDeviceCalendarSyncing = true;
+    notifyListeners();
+
+    try {
+      final rangeStart = centerDate.subtract(const Duration(days: 7));
+      final rangeEnd = centerDate.add(const Duration(days: 30));
+
+      final namesMap = <String, String>{};
+      for (final cal in _availableDeviceCalendars) {
+        if (cal.id != null) {
+          namesMap[cal.id!] = cal.name ?? 'Calendario';
+        }
+      }
+
+      final externalBlocks = await _deviceCalService.fetchEventsForRange(
+        startDate: rangeStart,
+        endDate: rangeEnd,
+        calendarIds: _selectedDeviceCalendarIds,
+        calendarNames: namesMap,
+      );
+
+      debugPrint('[ClockProvider] Sincronizados ${externalBlocks.length} eventos externos.');
+
+      // Eliminar bloques externos previos dentro del rango sincronizado para evitar duplicados o reflejar eliminaciones
+      _blocks.removeWhere((b) =>
+          b.isExternalCalendar &&
+          !b.date.isBefore(rangeStart) &&
+          !b.date.isAfter(rangeEnd));
+
+      // Agregar los nuevos bloques sincronizados
+      for (final block in externalBlocks) {
+        _blocks.add(block);
+        _scheduleBlockNotification(block);
+      }
+
+      _recalculateAllRings();
+      await _saveToStorage();
+      return externalBlocks.length;
+    } catch (e) {
+      debugPrint('[ClockProvider] Error sincronizando eventos de dispositivo: $e');
+      return 0;
+    } finally {
+      _isDeviceCalendarSyncing = false;
+      notifyListeners();
+    }
+  }
+
   // ──────────────────────────────────────────────
   // CRUD de Categorías Personalizadas
   // ──────────────────────────────────────────────
@@ -839,6 +980,19 @@ class ClockProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('[ClockProvider] Error al cargar gamificación: $e');
       }
+    }
+
+    // Cargar Configuración de Calendarios del Dispositivo
+    if (prefs.containsKey(_kDeviceCalSyncEnabledKey)) {
+      _deviceCalendarSyncEnabled = prefs.getBool(_kDeviceCalSyncEnabledKey) ?? false;
+    }
+    if (prefs.containsKey(_kSelectedDeviceCalIdsKey)) {
+      _selectedDeviceCalendarIds = prefs.getStringList(_kSelectedDeviceCalIdsKey) ?? [];
+    }
+    if (_deviceCalendarSyncEnabled) {
+      loadDeviceCalendars().then((_) {
+        syncDeviceCalendarEvents(date: _selectedDate);
+      });
     }
 
     notifyListeners();
@@ -1055,8 +1209,17 @@ class ClockProvider extends ChangeNotifier {
     }
   }
 
+  bool _isDisposed = false;
+
+  @override
+  void notifyListeners() {
+    if (_isDisposed) return;
+    super.notifyListeners();
+  }
+
   @override
   void dispose() {
+    _isDisposed = true;
     _clockTimer?.cancel();
     _authSub?.cancel();
     super.dispose();

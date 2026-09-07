@@ -452,4 +452,34 @@ class AppLocalizationsEs extends AppLocalizations {
   String get badgeBalancedLifeTitle => 'Vida Equilibrada';
   @override
   String get badgeBalancedLifeDesc => 'Completa bloques de al menos 3 categorías distintas en un día';
+
+  // ── Calendarios del Dispositivo ──
+  @override
+  String get deviceCalendarSettingsTitle => 'Calendarios del Dispositivo';
+  @override
+  String get deviceCalendarSettingsSubtitle => 'Sincroniza eventos de Google, iCloud y Outlook';
+  @override
+  String get deviceCalendarSyncToggle => 'Sincronizar eventos del dispositivo';
+  @override
+  String get deviceCalendarSyncDesc => 'Muestra automáticamente tus eventos en el reloj radial de Clock.Do.';
+  @override
+  String get deviceCalendarPermissionsRequired => 'Se requieren permisos de acceso al calendario para sincronizar tus eventos.';
+  @override
+  String get deviceCalendarGrantPermission => 'Conceder Permisos';
+  @override
+  String get deviceCalendarNoCalendarsFound => 'No se detectaron calendarios configurados en este dispositivo.';
+  @override
+  String get deviceCalendarSelectCalendars => 'Selecciona los calendarios a incluir';
+  @override
+  String get deviceCalendarSyncNow => 'Sincronizar Ahora';
+  @override
+  String deviceCalendarSyncedCount(int count) => count == 1 ? '1 evento sincronizado' : '$count eventos sincronizados';
+  @override
+  String get deviceCalendarBadge => 'Calendario';
+  @override
+  String get deviceCalendarStatusEnabled => 'Sincronización activa';
+  @override
+  String get deviceCalendarStatusDisabled => 'Desactivado';
+  @override
+  String deviceCalendarLinkedCount(int count) => count == 1 ? '1 calendario vinculado' : '$count calendarios vinculados';
 }
