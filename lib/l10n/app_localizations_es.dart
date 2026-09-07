@@ -163,6 +163,18 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get durationLabel => 'Duración';
   @override
+  String get taskTypeLabel => 'Tipo de Tarea';
+  @override
+  String get timeRangeOption => 'Rango de tiempo';
+  @override
+  String get pointTaskOption => 'Tarea puntual (sin fin)';
+  @override
+  String get pointTaskTimeLabel => 'Hora de la Tarea';
+  @override
+  String get pointTaskBadge => 'Puntual';
+  @override
+  String get pointTaskHint => 'Marca un momento específico del día sin hora de término';
+  @override
   String get categoryLabel => 'Categoría';
   @override
   String get newCategoryOption => '+ Nueva Categoría';

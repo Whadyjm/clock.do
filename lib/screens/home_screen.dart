@@ -838,14 +838,45 @@ class _HomeScreenState extends State<HomeScreen>
                   Row(
                     children: [
                       Text(
-                        '${RadialMath.decimalHoursToString(block.startHour)} – '
-                        '${RadialMath.decimalHoursToString(block.endHour)}',
+                        block.isPointInTime
+                            ? RadialMath.decimalHoursToString(block.startHour)
+                            : '${RadialMath.decimalHoursToString(block.startHour)} – '
+                              '${RadialMath.decimalHoursToString(block.endHour!)}',
                         style: const TextStyle(
                           color: Color(0xFF9E98D4),
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      if (block.isPointInTime) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: block.category.color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.push_pin_rounded,
+                                size: 9,
+                                color: block.category.color,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                context.l10n.pointTaskBadge,
+                                style: TextStyle(
+                                  color: block.category.color,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       if (!block.notificationEnabled) ...[
                         const SizedBox(width: 6),
                         const Icon(

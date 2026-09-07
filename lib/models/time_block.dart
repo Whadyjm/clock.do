@@ -49,7 +49,8 @@ class TimeBlock {
   final double startHour;
 
   /// Hora de fin en formato decimal (ej: 11.0 = 11:00 AM).
-  final double endHour;
+  /// Si es null, representa una tarea puntual sin rango ni hora de término.
+  final double? endHour;
 
   final TaskCategory category;
   final TaskStatus status;
@@ -65,13 +66,16 @@ class TimeBlock {
   /// Si es null, utiliza el valor global configurado en el sistema.
   final int? reminderMinutes;
 
+  /// Indica si es una tarea puntual en una hora específica sin hora/fecha fin.
+  bool get isPointInTime => endHour == null;
+
   TimeBlock({
     required this.id,
     required this.title,
     this.description,
     DateTime? date,
     required this.startHour,
-    required this.endHour,
+    this.endHour,
     this.category = TaskCategory.none,
     this.status = TaskStatus.pending,
     this.ringIndex = 0,
@@ -85,7 +89,7 @@ class TimeBlock {
     String? description,
     DateTime? date,
     required double startHour,
-    required double endHour,
+    double? endHour,
     TaskCategory category = TaskCategory.none,
     TaskStatus status = TaskStatus.pending,
     bool notificationEnabled = true,
@@ -106,8 +110,8 @@ class TimeBlock {
     );
   }
 
-  /// Duración en horas decimales.
-  double get durationHours => endHour - startHour;
+  /// Duración en horas decimales (0.0 si es tarea puntual).
+  double get durationHours => isPointInTime ? 0.0 : (endHour! - startHour);
 
   /// Devuelve true si la tarea corresponde al mismo día dado.
   bool isOnDay(DateTime otherDate) {
@@ -119,12 +123,24 @@ class TimeBlock {
   /// Devuelve true si esta tarea se solapa con [other] (ambas en el mismo día).
   bool overlapsWith(TimeBlock other) {
     if (!isOnDay(other.date)) return false;
-    return startHour < other.endHour && endHour > other.startHour;
+    if (isPointInTime && other.isPointInTime) {
+      return (startHour - other.startHour).abs() < 0.08;
+    }
+    if (isPointInTime) {
+      return startHour >= other.startHour && startHour < (other.endHour ?? other.startHour);
+    }
+    if (other.isPointInTime) {
+      return other.startHour >= startHour && other.startHour < (endHour ?? startHour);
+    }
+    return startHour < other.endHour! && endHour! > other.startHour;
   }
 
   /// Devuelve true si la tarea está activa en la hora dada.
   bool isActiveAt(double hour) {
-    return hour >= startHour && hour < endHour;
+    if (isPointInTime) {
+      return (hour - startHour).abs() < 0.25;
+    }
+    return hour >= startHour && hour < endHour!;
   }
 
   /// Crea una copia del TimeBlock con los campos proporcionados modificados.
@@ -134,6 +150,7 @@ class TimeBlock {
     DateTime? date,
     double? startHour,
     double? endHour,
+    bool clearEndHour = false,
     TaskCategory? category,
     TaskStatus? status,
     int? ringIndex,
@@ -147,7 +164,7 @@ class TimeBlock {
       description: description ?? this.description,
       date: date ?? this.date,
       startHour: startHour ?? this.startHour,
-      endHour: endHour ?? this.endHour,
+      endHour: clearEndHour ? null : (endHour ?? this.endHour),
       category: category ?? this.category,
       status: status ?? this.status,
       ringIndex: ringIndex ?? this.ringIndex,
@@ -202,7 +219,7 @@ class TimeBlock {
           ? DateTime.tryParse(json['date'] as String) ?? DateTime.now()
           : DateTime.now(),
       startHour: (json['startHour'] as num).toDouble(),
-      endHour: (json['endHour'] as num).toDouble(),
+      endHour: (json['endHour'] as num?)?.toDouble(),
       category: TaskCategory.fromIdOrIndex(
         id: json['categoryId'] as String? ?? json['category_id'] as String?,
         index: json['category'] as int?,
@@ -228,7 +245,7 @@ class TimeBlock {
           ? DateTime.tryParse(map['date'] as String) ?? DateTime.now()
           : DateTime.now(),
       startHour: (map['start_hour'] as num? ?? map['startHour'] as num).toDouble(),
-      endHour: (map['end_hour'] as num? ?? map['endHour'] as num).toDouble(),
+      endHour: (map['end_hour'] as num? ?? map['endHour'] as num?)?.toDouble(),
       category: TaskCategory.fromIdOrIndex(
         id: map['category_id'] as String?,
         index: (map['category'] as int? ?? 0).clamp(0, TaskCategory.values.length - 1),
@@ -244,5 +261,5 @@ class TimeBlock {
 
   @override
   String toString() =>
-      'TimeBlock($title, ${date.toIso8601String().split('T').first}, $startHour–$endHour, ${category.displayName}, ${status.displayName})';
+      'TimeBlock($title, ${date.toIso8601String().split('T').first}, ${isPointInTime ? '@$startHour' : '$startHour–$endHour'}, ${category.displayName}, ${status.displayName})';
 }

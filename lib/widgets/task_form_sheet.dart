@@ -41,6 +41,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   late DateTime _selectedDate;
   late double _startHour;
   late double _endHour;
+  late bool _isPointInTime;
   late bool _notificationEnabled;
   late int? _reminderMinutes; // null = usar ajuste global predeterminado
 
@@ -54,12 +55,13 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     _descCtrl = TextEditingController(text: block?.description ?? widget.initialDescription ?? '');
     _selectedCategory = block?.category ?? widget.initialCategory ?? TaskCategory.work;
     _selectedDate = block?.date ?? widget.initialDate ?? normalizeDate(DateTime.now());
+    _isPointInTime = block?.isPointInTime ?? (widget.suggestedEndHour == null && widget.suggestedStartHour != null);
     _startHour = block?.startHour ??
         widget.suggestedStartHour ??
         DateTime.now().hour.toDouble();
     _endHour = block?.endHour ??
         widget.suggestedEndHour ??
-        (_startHour + 1.0);
+        ((_startHour + 1.0) % 24);
     _notificationEnabled = block?.notificationEnabled ?? true;
     _reminderMinutes = block?.reminderMinutes;
   }
@@ -87,7 +89,8 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
         date: _selectedDate,
         startHour: _startHour,
-        endHour: _endHour,
+        endHour: _isPointInTime ? null : _endHour,
+        clearEndHour: _isPointInTime,
         category: _selectedCategory,
         notificationEnabled: _notificationEnabled,
         reminderMinutes: _reminderMinutes,
@@ -99,7 +102,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
         date: _selectedDate,
         startHour: _startHour,
-        endHour: _endHour,
+        endHour: _isPointInTime ? null : _endHour,
         category: _selectedCategory,
         notificationEnabled: _notificationEnabled,
         reminderMinutes: _reminderMinutes,
@@ -253,43 +256,63 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Selector de hora visual tipo cards
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTimeCard(
-                    label: l10n.startTimeLabel.toUpperCase(),
-                    value: _startHour,
-                    color: _selectedCategory.color,
-                    fillColor: fieldFillColor,
-                    borderColor: borderColor,
-                    onChanged: (v) => setState(() => _startHour = v),
+            // Selector de tipo de tarea (Rango vs Puntual)
+            _buildTaskTypeSelector(l10n, isDark, fieldFillColor, borderColor),
+            const SizedBox(height: 14),
+
+            // Selector de hora visual con animación fluida entre Rango y Puntual
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 240),
+              crossFadeState: _isPointInTime
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: Row(
+                children: [
+                  Expanded(
+                    child: _buildTimeCard(
+                      label: l10n.startTimeLabel.toUpperCase(),
+                      value: _startHour,
+                      color: _selectedCategory.color,
+                      fillColor: fieldFillColor,
+                      borderColor: borderColor,
+                      onChanged: (v) => setState(() => _startHour = v),
+                    ),
                   ),
-                ),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF0EEFF),
-                    shape: BoxShape.circle,
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF0EEFF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Color(0xFF6C5CE7),
+                      size: 16,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Color(0xFF6C5CE7),
-                    size: 16,
+                  Expanded(
+                    child: _buildTimeCard(
+                      label: l10n.endTimeLabel.toUpperCase(),
+                      value: _endHour,
+                      color: _selectedCategory.color,
+                      fillColor: fieldFillColor,
+                      borderColor: borderColor,
+                      onChanged: (v) => setState(() => _endHour = v),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _buildTimeCard(
-                    label: l10n.endTimeLabel.toUpperCase(),
-                    value: _endHour,
-                    color: _selectedCategory.color,
-                    fillColor: fieldFillColor,
-                    borderColor: borderColor,
-                    onChanged: (v) => setState(() => _endHour = v),
-                  ),
-                ),
-              ],
+                ],
+              ),
+              secondChild: _buildPointTimeCard(
+                label: l10n.pointTaskTimeLabel.toUpperCase(),
+                hint: l10n.pointTaskHint,
+                value: _startHour,
+                color: _selectedCategory.color,
+                fillColor: fieldFillColor,
+                borderColor: borderColor,
+                textColor: textColor,
+                onChanged: (v) => setState(() => _startHour = v),
+              ),
             ),
             const SizedBox(height: 22),
 
@@ -505,6 +528,192 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
               style: TextStyle(
                 color: color,
                 fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskTypeSelector(
+    AppLocalizations l10n,
+    bool isDark,
+    Color fieldFillColor,
+    Color borderColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: fieldFillColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildTypeSegmentButton(
+              title: l10n.timeRangeOption,
+              icon: Icons.timelapse_rounded,
+              isSelected: !_isPointInTime,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _isPointInTime = false);
+              },
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: _buildTypeSegmentButton(
+              title: l10n.pointTaskOption,
+              icon: Icons.push_pin_rounded,
+              isSelected: _isPointInTime,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _isPointInTime = true);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeSegmentButton({
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? _selectedCategory.color : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: _selectedCategory.color.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : const Color(0xFF9E98D4),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF9E98D4),
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPointTimeCard({
+    required String label,
+    required String hint,
+    required double value,
+    required Color color,
+    required Color fillColor,
+    required Color borderColor,
+    required Color textColor,
+    required void Function(double) onChanged,
+  }) {
+    final hour = value.floor() % 24;
+    final minute = ((value - value.floor()) * 60).round();
+    final timeStr =
+        '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+    return GestureDetector(
+      onTap: () async {
+        HapticFeedback.selectionClick();
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay(hour: hour, minute: minute),
+        );
+        if (picked != null) {
+          HapticFeedback.lightImpact();
+          onChanged(RadialMath.timeToDecimalHours(picked.hour, picked.minute));
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: fillColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: borderColor,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.push_pin_rounded,
+                color: color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Color(0xFF9E98D4),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    hint,
+                    style: const TextStyle(
+                      color: Color(0xFF9E98D4),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              timeStr,
+              style: TextStyle(
+                color: color,
+                fontSize: 24,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
               ),

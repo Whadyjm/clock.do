@@ -228,8 +228,13 @@ class RadialClockPainter extends CustomPainter {
     double thickness,
     TimeBlock block,
   ) {
+    if (block.isPointInTime) {
+      _drawPointTaskMarker(canvas, center, radius, thickness, block);
+      return;
+    }
+
     final startH = is24h ? block.startHour : block.startHour % 12;
-    final endH   = is24h ? block.endHour   : block.endHour   % 12;
+    final endH   = is24h ? block.endHour!   : block.endHour!   % 12;
 
     final startAngle = RadialMath.hourToAngle(startH, is24h: is24h);
     final endAngle   = RadialMath.hourToAngle(endH,   is24h: is24h);
@@ -310,6 +315,123 @@ class RadialClockPainter extends CustomPainter {
           ..lineTo(mid.dx + 4, mid.dy - 3),
         p,
       );
+    }
+  }
+
+  // ── Marcador de Tarea Puntual (Sin Hora Fin) ───────────────
+  void _drawPointTaskMarker(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    double thickness,
+    TimeBlock block,
+  ) {
+    final hour = is24h ? block.startHour : block.startHour % 12;
+    final angle = RadialMath.hourToAngle(hour, is24h: is24h);
+    final pos = RadialMath.polarToCartesian(center, radius, angle);
+
+    final isInspected = block.id == inspectedBlockId;
+    final isCompleted = block.status == TaskStatus.completed;
+    final baseColor = block.category.color;
+
+    if (isInspected) {
+      // 1. Halo exterior luminoso difuminado de la lupa
+      canvas.drawCircle(
+        pos,
+        thickness * 0.9 + 12.0,
+        Paint()
+          ..color = baseColor.withValues(alpha: isDark ? 0.65 : 0.4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
+
+      // 2. Anillo translúcido de enfoque
+      canvas.drawCircle(
+        pos,
+        thickness * 0.75 + 4.0,
+        Paint()
+          ..color = baseColor.withValues(alpha: 0.35)
+          ..style = PaintingStyle.fill,
+      );
+
+      // 3. Aro exterior blanco de contraste
+      canvas.drawCircle(
+        pos,
+        thickness * 0.65,
+        Paint()..color = Colors.white,
+      );
+
+      // 4. Núcleo con el color de categoría
+      canvas.drawCircle(
+        pos,
+        thickness * 0.48,
+        Paint()..color = isCompleted ? baseColor.withValues(alpha: 0.6) : baseColor,
+      );
+
+      // 5. Marca interna (Checkmark o punto blanco)
+      if (isCompleted) {
+        final p = Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..strokeCap = StrokeCap.round;
+        canvas.drawPath(
+          Path()
+            ..moveTo(pos.dx - 3, pos.dy)
+            ..lineTo(pos.dx - 1, pos.dy + 2.5)
+            ..lineTo(pos.dx + 3.5, pos.dy - 2.5),
+          p,
+        );
+      } else {
+        canvas.drawCircle(pos, 2.5, Paint()..color = Colors.white);
+      }
+    } else {
+      // Sombra suave en dial
+      canvas.drawCircle(
+        pos + const Offset(0, 1.5),
+        thickness * 0.52,
+        Paint()
+          ..color = Colors.black.withValues(alpha: isDark ? 0.35 : 0.15)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+      );
+
+      // Borde exterior blanco de nitidez
+      canvas.drawCircle(
+        pos,
+        thickness * 0.52,
+        Paint()..color = isDark ? const Color(0xFF1E2030) : Colors.white,
+      );
+
+      // Cuerpo con el color de la categoría
+      canvas.drawCircle(
+        pos,
+        thickness * 0.40,
+        Paint()
+          ..color = isCompleted
+              ? baseColor.withValues(alpha: isDark ? 0.35 : 0.4)
+              : baseColor,
+      );
+
+      // Marca interior (Checkmark si completada, punto si pendiente)
+      if (isCompleted) {
+        final p = Paint()
+          ..color = Colors.white.withValues(alpha: 0.9)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.8
+          ..strokeCap = StrokeCap.round;
+        canvas.drawPath(
+          Path()
+            ..moveTo(pos.dx - 2.5, pos.dy)
+            ..lineTo(pos.dx - 0.8, pos.dy + 2)
+            ..lineTo(pos.dx + 2.8, pos.dy - 2),
+          p,
+        );
+      } else {
+        canvas.drawCircle(
+          pos,
+          2.0,
+          Paint()..color = Colors.white.withValues(alpha: 0.9),
+        );
+      }
     }
   }
 
@@ -551,9 +673,21 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
       // Tolerancia de 8px extra para facilitar el toque
       if (radialDist > halfThick + 8) continue;
 
+      if (b.isPointInTime) {
+        final s = widget.is24h ? b.startHour : b.startHour % total;
+        final angle = RadialMath.hourToAngle(s, is24h: widget.is24h);
+        final markerPos = RadialMath.polarToCartesian(_center!, ribbonR, angle);
+        final dist = (localPosition - markerPos).distance;
+        if (dist <= 24.0 && dist < bestDist) {
+          bestDist = dist;
+          best = b;
+        }
+        continue;
+      }
+
       // Verificar el ángulo en modo 12h o 24h
       final s = widget.is24h ? b.startHour : b.startHour % total;
-      var e = widget.is24h ? b.endHour   : b.endHour   % total;
+      var e = widget.is24h ? b.endHour!   : b.endHour!   % total;
       // Bloque que cruza el 0/12 en el dial
       final wraps = e <= s;
       final inArc = wraps ? (h >= s || h < e) : (h >= s && h < e);
@@ -820,13 +954,15 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
     const w = 195.0;
 
     final startStr = RadialMath.decimalHoursToString(block.startHour);
-    final endStr   = RadialMath.decimalHoursToString(block.endHour);
-    final durMin   = ((block.endHour - block.startHour) * 60).round();
+    final endStr   = block.isPointInTime ? null : RadialMath.decimalHoursToString(block.endHour!);
+    final durMin   = block.isPointInTime ? 0 : ((block.endHour! - block.startHour) * 60).round();
     final durH     = durMin ~/ 60;
     final durM     = durMin % 60;
-    final durStr   = durH > 0
-        ? (durM > 0 ? '${durH}h ${durM}m' : '${durH}h')
-        : '${durM}m';
+    final durStr   = block.isPointInTime
+        ? 'Puntual'
+        : (durH > 0
+            ? (durM > 0 ? '${durH}h ${durM}m' : '${durH}h')
+            : '${durM}m');
 
     final bg    = isDark ? const Color(0xFF161826) : Colors.white;
     final fg    = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -950,7 +1086,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
                 runSpacing: 2,
                 children: [
                   Text(
-                    '$startStr – $endStr',
+                    block.isPointInTime ? startStr : '$startStr – $endStr',
                     style: const TextStyle(
                       color: Color(0xFF6C5CE7),
                       fontSize: 11,
@@ -963,13 +1099,22 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
                       color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(
-                      durStr,
-                      style: const TextStyle(
-                        color: Color(0xFF6C5CE7),
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (block.isPointInTime) ...[
+                          const Icon(Icons.push_pin_rounded, size: 9, color: Color(0xFF6C5CE7)),
+                          const SizedBox(width: 2),
+                        ],
+                        Text(
+                          durStr,
+                          style: const TextStyle(
+                            color: Color(0xFF6C5CE7),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

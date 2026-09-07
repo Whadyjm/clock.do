@@ -140,6 +140,12 @@ abstract class AppLocalizations {
   String get startTimeLabel;
   String get endTimeLabel;
   String get durationLabel;
+  String get taskTypeLabel;
+  String get timeRangeOption;
+  String get pointTaskOption;
+  String get pointTaskTimeLabel;
+  String get pointTaskBadge;
+  String get pointTaskHint;
   String get categoryLabel;
   String get newCategoryOption;
   String get reminderLabel;
