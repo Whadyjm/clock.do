@@ -63,7 +63,7 @@ void main() {
       await tester.pumpWidget(createOnboardingWidget());
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('CLOCK.DO'), findsOneWidget);
+      expect(find.byKey(const Key('brand_logo')), findsOneWidget);
       expect(find.text('Saltar'), findsOneWidget);
       expect(find.text('⏱️ INNOVACIÓN RADIAL'), findsOneWidget);
       expect(find.text('Siguiente'), findsOneWidget);

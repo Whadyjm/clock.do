@@ -189,6 +189,25 @@ abstract class AppLocalizations {
   String get syncedStatus;
   String get authSuccessMessage;
   String get invalidCredentialsError;
+  String get forgotPasswordTitle;
+  String get forgotPasswordSubtitle;
+  String get sendRecoveryEmailButton;
+  String get resetPasswordTitle;
+  String get resetPasswordSubtitle;
+  String get otpCodeLabel;
+  String get otpCodeHint;
+  String get newPasswordLabel;
+  String get newPasswordHint;
+  String get confirmNewPasswordLabel;
+  String get passwordsDoNotMatch;
+  String get resetPasswordButton;
+  String get passwordResetSuccess;
+  String get changePasswordButton;
+  String get changePasswordTitle;
+  String get alreadyHaveOtp;
+  String get backToSignIn;
+  String get resendOtp;
+  String get recoveryEmailSent;
 
   // ── Gamificación & Maestría del Tiempo ──
   String get gamificationTitle;

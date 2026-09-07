@@ -251,6 +251,44 @@ class AppLocalizationsEs extends AppLocalizations {
   String get authSuccessMessage => 'Sesión iniciada con éxito';
   @override
   String get invalidCredentialsError => 'Error al autenticar: revisa tus credenciales';
+  @override
+  String get forgotPasswordTitle => 'Recuperar Contraseña';
+  @override
+  String get forgotPasswordSubtitle => 'Ingresa tu correo electrónico para recibir un código OTP y las instrucciones para restablecer tu contraseña.';
+  @override
+  String get sendRecoveryEmailButton => 'Enviar Código de Recuperación';
+  @override
+  String get resetPasswordTitle => 'Restablecer Contraseña';
+  @override
+  String get resetPasswordSubtitle => 'Ingresa el código OTP de 6 dígitos que enviamos a tu correo y define tu nueva contraseña.';
+  @override
+  String get otpCodeLabel => 'Código OTP (6 dígitos)';
+  @override
+  String get otpCodeHint => 'Ej: 123456';
+  @override
+  String get newPasswordLabel => 'Nueva Contraseña';
+  @override
+  String get newPasswordHint => 'Mínimo 6 caracteres';
+  @override
+  String get confirmNewPasswordLabel => 'Confirmar Nueva Contraseña';
+  @override
+  String get passwordsDoNotMatch => 'Las contraseñas no coinciden';
+  @override
+  String get resetPasswordButton => 'Restablecer Contraseña';
+  @override
+  String get passwordResetSuccess => '¡Contraseña actualizada con éxito!';
+  @override
+  String get changePasswordButton => 'Cambiar Contraseña';
+  @override
+  String get changePasswordTitle => 'Actualizar Contraseña';
+  @override
+  String get alreadyHaveOtp => '¿Ya tienes un código? Ingrésalo aquí';
+  @override
+  String get backToSignIn => 'Volver a Iniciar Sesión';
+  @override
+  String get resendOtp => '¿No recibiste el código? Reenviar';
+  @override
+  String get recoveryEmailSent => 'Código enviado a tu correo. Revisa tu bandeja de entrada.';
 
   @override
   String get viewOnboardingOption => 'Ver Guía de Bienvenida';

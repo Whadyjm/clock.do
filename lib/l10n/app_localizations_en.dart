@@ -251,6 +251,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSuccessMessage => 'Signed in successfully';
   @override
   String get invalidCredentialsError => 'Authentication error: check your credentials';
+  @override
+  String get forgotPasswordTitle => 'Reset Password';
+  @override
+  String get forgotPasswordSubtitle => 'Enter your email address to receive an OTP code and instructions to reset your password.';
+  @override
+  String get sendRecoveryEmailButton => 'Send Recovery Code';
+  @override
+  String get resetPasswordTitle => 'Set New Password';
+  @override
+  String get resetPasswordSubtitle => 'Enter the 6-digit OTP code sent to your email and set your new password.';
+  @override
+  String get otpCodeLabel => 'OTP Code (6 digits)';
+  @override
+  String get otpCodeHint => 'e.g. 123456';
+  @override
+  String get newPasswordLabel => 'New Password';
+  @override
+  String get newPasswordHint => 'At least 6 characters';
+  @override
+  String get confirmNewPasswordLabel => 'Confirm New Password';
+  @override
+  String get passwordsDoNotMatch => 'Passwords do not match';
+  @override
+  String get resetPasswordButton => 'Reset Password';
+  @override
+  String get passwordResetSuccess => 'Password updated successfully!';
+  @override
+  String get changePasswordButton => 'Change Password';
+  @override
+  String get changePasswordTitle => 'Update Password';
+  @override
+  String get alreadyHaveOtp => 'Already have a code? Enter it here';
+  @override
+  String get backToSignIn => 'Back to Sign In';
+  @override
+  String get resendOtp => "Didn't receive the code? Resend";
+  @override
+  String get recoveryEmailSent => 'Code sent to your email. Please check your inbox.';
 
   @override
   String get viewOnboardingOption => 'View Welcome Guide';

@@ -98,13 +98,43 @@ class SupabaseService {
     await supa.auth.signOut();
   }
 
-  /// Envío de correo de recuperación de contraseña
-  Future<void> resetPasswordForEmail(String email) async {
+  /// Envío de correo o código OTP de recuperación de contraseña
+  Future<void> resetPasswordForEmail(String email, {String? redirectTo}) async {
     final supa = client;
     if (supa == null) {
       throw Exception('Supabase no está inicializado.');
     }
-    await supa.auth.resetPasswordForEmail(email.trim());
+    await supa.auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: redirectTo,
+    );
+  }
+
+  /// Verifica el código OTP de recuperación enviado al correo electrónico
+  Future<AuthResponse> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) async {
+    final supa = client;
+    if (supa == null) {
+      throw Exception('Supabase no está inicializado.');
+    }
+    return await supa.auth.verifyOTP(
+      email: email.trim(),
+      token: token.trim(),
+      type: OtpType.recovery,
+    );
+  }
+
+  /// Actualiza la contraseña del usuario autenticado (o en sesión de recuperación)
+  Future<UserResponse> updatePassword(String newPassword) async {
+    final supa = client;
+    if (supa == null) {
+      throw Exception('Supabase no está inicializado.');
+    }
+    return await supa.auth.updateUser(
+      UserAttributes(password: newPassword.trim()),
+    );
   }
 
   // ──────────────────────────────────────────────

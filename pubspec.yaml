@@ -31,6 +31,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
 
 flutter_launcher_icons:
   android: true
@@ -41,4 +43,4 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/clockdoicon.png"
     background_color: "#ffffff"
-    theme_color: "#ffffff"
+    theme_color: "#6C5CE7"

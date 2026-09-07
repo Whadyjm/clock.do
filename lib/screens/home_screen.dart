@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/supabase_service.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
 import '../models/todo_item.dart';
@@ -34,10 +37,18 @@ class _HomeScreenState extends State<HomeScreen>
   late Animation<double> _headerFade;
   // Scroll de la lista de tareas — controla la altura del reloj
   late ScrollController _taskScrollCtrl;
+  StreamSubscription<AuthState>? _authSub;
 
   @override
   void initState() {
     super.initState();
+
+    // Escuchar eventos de recuperación de contraseña de Supabase
+    _authSub = SupabaseService().authStateChanges?.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery && mounted) {
+        _openAuthSheet(context, initialMode: AuthSheetMode.resetPassword);
+      }
+    });
 
     // FAB pulsante
     _fabCtrl = AnimationController(
@@ -66,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    _authSub?.cancel();
     _fabCtrl.dispose();
     _headerCtrl.dispose();
     _taskScrollCtrl.dispose();
@@ -159,7 +171,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _openAuthSheet(BuildContext ctx) {
+  void _openAuthSheet(
+    BuildContext ctx, {
+    AuthSheetMode initialMode = AuthSheetMode.signIn,
+    String? initialEmail,
+  }) {
     if (!mounted) return;
     HapticFeedback.selectionClick();
     final provider = context.read<ClockProvider>();
@@ -169,7 +185,10 @@ class _HomeScreenState extends State<HomeScreen>
       backgroundColor: Colors.transparent,
       builder: (_) => ChangeNotifierProvider.value(
         value: provider,
-        child: const AuthSheet(),
+        child: AuthSheet(
+          initialMode: initialMode,
+          initialEmail: initialEmail,
+        ),
       ),
     );
   }

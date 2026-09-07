@@ -92,44 +92,29 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   children: [
                     // Brand Pill
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.white.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF6C5CE7)
+                              .withValues(alpha: 0.2),
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.08),
+                            color: const Color(0xFF6C5CE7)
+                                .withValues(alpha: 0.12),
                             blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            offset: const Offset(0, 3),
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 18,
-                            height: 18,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
-                              ),
-                            ),
-                            child: const Icon(Icons.access_time_filled_rounded,
-                                size: 12, color: Colors.white),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'CLOCK.DO',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.2,
-                              color: Color(0xFF1E1B4B),
-                            ),
-                          ),
-                        ],
+                      child: Image.asset(
+                        'assets/clickdologo.png',
+                        key: const Key('brand_logo'),
+                        height: 20,
+                        fit: BoxFit.contain,
                       ),
                     ),
 
@@ -341,17 +326,43 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   const SizedBox(height: 12),
 
                   // Título
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      height: 1.2,
-                      letterSpacing: -0.5,
-                      color: Color(0xFF1E1B4B),
+                  if (title.contains('Clock.Do')) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title.replaceAll('Clock.Do', '').trim(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            height: 1.2,
+                            letterSpacing: -0.5,
+                            color: Color(0xFF1E1B4B),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Image.asset(
+                          'assets/clickdologo.png',
+                          height: 20,
+                          fit: BoxFit.contain,
+                        ),
+                      ],
                     ),
-                  ),
+                  ] else ...[
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                        letterSpacing: -0.5,
+                        color: Color(0xFF1E1B4B),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
 
                   // Descripción

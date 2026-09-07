@@ -163,6 +163,32 @@ class AppSettingsSheet extends StatelessWidget {
                   const SizedBox(height: 10),
                   _buildNotificationSettings(context, provider, isDark, sectionBg, borderColor, textColor),
 
+                  const SizedBox(height: 24),
+
+                  // Brand Footer
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/clickdologo.png',
+                          height: 24,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Clock.Do • v1.0.0',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? const Color(0xFF9E98D4).withValues(alpha: 0.6)
+                                : const Color(0xFF636E72).withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 16),
                 ],
               ),
