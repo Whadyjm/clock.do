@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -74,6 +75,70 @@ class _AuthSheetState extends State<AuthSheet> {
     super.dispose();
   }
 
+  /// Convierte excepciones técnicas de Supabase o de red en mensajes amigables en español.
+  String _humanizeError(dynamic e) {
+    final raw = e.toString().toLowerCase();
+
+    // ── Errores de conectividad / DNS / red ──────────────────────────────────
+    if (e is SocketException ||
+        raw.contains('socketexception') ||
+        raw.contains('failed host lookup') ||
+        raw.contains('no address associated') ||
+        raw.contains('clientexception') ||
+        raw.contains('connection refused') ||
+        raw.contains('network is unreachable') ||
+        raw.contains('errno = 7') ||
+        raw.contains('errno = 101') ||
+        raw.contains('errno = 111')) {
+      return 'Sin conexión a internet. Verifica tu red Wi-Fi o datos móviles e inténtalo de nuevo.';
+    }
+
+    // ── Tiempo de espera agotado ─────────────────────────────────────────────
+    if (raw.contains('timeout') || raw.contains('timed out')) {
+      return 'La conexión tardó demasiado. Verifica tu internet e inténtalo de nuevo.';
+    }
+
+    // ── AuthException de Supabase ────────────────────────────────────────────
+    if (e is AuthException) {
+      final msg = e.message.toLowerCase();
+
+      if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid email or password') ||
+          msg.contains('wrong password')) {
+        return 'Correo o contraseña incorrectos. Verifica tus datos e inténtalo de nuevo.';
+      }
+      if (msg.contains('email not confirmed')) {
+        return 'Confirma tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.';
+      }
+      if (msg.contains('user not found') || msg.contains('no user found')) {
+        return 'No encontramos una cuenta con ese correo. ¿Quieres crear una cuenta nueva?';
+      }
+      if (msg.contains('email already registered') ||
+          msg.contains('user already registered') ||
+          msg.contains('already been registered')) {
+        return 'Ya existe una cuenta con este correo. Intenta iniciar sesión.';
+      }
+      if (msg.contains('password should be at least') ||
+          msg.contains('password is too short')) {
+        return 'La contraseña debe tener al menos 6 caracteres.';
+      }
+      if (msg.contains('signup is disabled')) {
+        return 'El registro está temporalmente desactivado. Inténtalo más tarde.';
+      }
+      if (msg.contains('otp') || msg.contains('token')) {
+        return 'El código ingresado no es válido o ya expiró. Solicita uno nuevo.';
+      }
+      if (msg.contains('rate limit') || msg.contains('too many requests')) {
+        return 'Demasiados intentos seguidos. Espera unos minutos antes de volver a intentarlo.';
+      }
+      // Si tiene un mensaje en inglés no cubierto, lo retornamos limpio
+      return 'Error de autenticación. Verifica tus datos e inténtalo de nuevo.';
+    }
+
+    // ── Error genérico ───────────────────────────────────────────────────────
+    return 'Algo salió mal. Verifica tu conexión e inténtalo de nuevo.';
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -116,12 +181,12 @@ class _AuthSheetState extends State<AuthSheet> {
       }
     } on AuthException catch (e) {
       setState(() {
-        _errorMessage = e.message;
+        _errorMessage = _humanizeError(e);
       });
       HapticFeedback.vibrate();
     } catch (e) {
       setState(() {
-        _errorMessage = 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+        _errorMessage = _humanizeError(e);
       });
       HapticFeedback.vibrate();
     } finally {
@@ -163,14 +228,14 @@ class _AuthSheetState extends State<AuthSheet> {
     } on AuthException catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.message;
+          _errorMessage = _humanizeError(e);
         });
         HapticFeedback.vibrate();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'No se pudo enviar el correo de recuperación: $e';
+          _errorMessage = _humanizeError(e);
         });
         HapticFeedback.vibrate();
       }
@@ -247,14 +312,14 @@ class _AuthSheetState extends State<AuthSheet> {
     } on AuthException catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.message;
+          _errorMessage = _humanizeError(e);
         });
         HapticFeedback.vibrate();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Error al restablecer la contraseña: $e';
+          _errorMessage = _humanizeError(e);
         });
         HapticFeedback.vibrate();
       }

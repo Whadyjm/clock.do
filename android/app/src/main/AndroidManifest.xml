@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permiso de internet requerido para sincronización con Supabase -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Permisos requeridos para notificaciones programadas -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
