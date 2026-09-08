@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Tema oscuro aplicado al Android Window mientras carga el proceso (modo oscuro del SO) -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <!-- Splash screen con fondo oscuro y logo Clock.Do centrado -->
-        <item name="android:windowBackground">@drawable/launch_background</item>
+    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:forceDarkAllowed">false</item>
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowSplashScreenBackground">#0D0F1A</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#0D0F1A</item>
     </style>
-    <!-- Tema aplicado al Android Window cuando Flutter ya está corriendo.
-         Determina el color de la ventana mientras Flutter inicializa su UI. -->
+    <!-- Tema aplicado al Android Window cuando Flutter ya está corriendo -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">@android:color/transparent</item>
     </style>

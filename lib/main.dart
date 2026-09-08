@@ -2,40 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'services/notification_service.dart';
-import 'services/supabase_service.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'providers/clock_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/home_screen.dart';
-import 'screens/onboarding_screen.dart';
+import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('es', null);
-  await initializeDateFormatting('en', null);
-  
-  // Inicialización de servicios de notificaciones y Supabase
-  await NotificationService().init();
-  await SupabaseService().initialize();
-
-  // Verificar si ya completó el onboarding
-  final prefs = await SharedPreferences.getInstance();
-  final bool showOnboarding = !(prefs.getBool('clockdo_onboarding_completed') ?? false);
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  // Mantener el splash nativo visible hasta que Flutter esté listo
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // Orientación vertical
-  SystemChrome.setPreferredOrientations([
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(ClockDoApp(showOnboarding: showOnboarding));
+
+  runApp(const ClockDoApp());
 }
 
 class ClockDoApp extends StatelessWidget {
-  final bool showOnboarding;
-
-  const ClockDoApp({super.key, this.showOnboarding = false});
+  const ClockDoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +39,8 @@ class ClockDoApp extends StatelessWidget {
             supportedLocales: AppLocalizations.supportedLocales,
             theme: _buildLightTheme(),
             darkTheme: _buildDarkTheme(),
-            home: showOnboarding
-                ? const OnboardingScreen()
-                : const HomeScreen(),
+            // SplashScreen es la pantalla inicial — maneja toda la inicialización
+            home: const SplashScreen(),
           );
         },
       ),

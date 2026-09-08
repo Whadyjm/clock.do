@@ -22,6 +22,7 @@ dependencies:
   flutter_timezone: ^3.0.1
   supabase_flutter: ^2.8.0
   device_calendar: ^4.3.3
+  flutter_native_splash: ^2.4.4
 
 
 dev_dependencies:
@@ -45,3 +46,14 @@ flutter_launcher_icons:
     image_path: "assets/clockdoicon.png"
     background_color: "#ffffff"
     theme_color: "#6C5CE7"
+
+flutter_native_splash:
+  # Solo fondo oscuro en el splash nativo — el SplashScreen Flutter maneja el logo y gradiente
+  color: "0D0F1A"
+  # Android 12+: solo color de fondo (sin imagen = sin recorte circular)
+  android_12:
+    color: "0D0F1A"
+    icon_background_color: "0D0F1A"
+  # iOS: solo fondo oscuro
+  ios: true
+  android: true
