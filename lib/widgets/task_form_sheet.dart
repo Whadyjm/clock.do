@@ -207,48 +207,57 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  _isEditing ? l10n.editTaskTitle : l10n.newTaskTitle,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                if (widget.existingBlock?.isExternalCalendar == true) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    constraints: const BoxConstraints(maxWidth: 130),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.event_available_rounded, size: 12, color: Color(0xFF6C5CE7)),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            widget.existingBlock?.externalCalendarName ?? l10n.deviceCalendarBadge,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF6C5CE7),
-                            ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isEditing ? l10n.editTaskTitle : l10n.newTaskTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      if (widget.existingBlock?.isExternalCalendar == true) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.event_available_rounded, size: 12, color: Color(0xFF6C5CE7)),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  widget.existingBlock?.externalCalendarName ?? l10n.deviceCalendarBadge,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF6C5CE7),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                ],
-                const Spacer(),
-                if (_isEditing)
+                ),
+                if (_isEditing) ...[
+                  const SizedBox(width: 8),
                   IconButton(
                     style: IconButton.styleFrom(
                       backgroundColor: const Color(0xFFFF7675).withValues(alpha: 0.15),
@@ -258,6 +267,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
                         color: Color(0xFFFF7675), size: 22),
                     onPressed: () => _delete(context),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 20),
