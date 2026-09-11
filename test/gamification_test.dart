@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:clockdo/models/gamification_data.dart';
+import 'package:clockdo/models/task_category.dart';
 import 'package:clockdo/models/time_block.dart';
 import 'package:clockdo/models/todo_item.dart';
 import 'package:clockdo/providers/clock_provider.dart';
@@ -154,6 +155,24 @@ void main() {
       expect(provider.isGoldenDialAchieved, isTrue);
       expect(provider.dailyCompletionRatio, 1.0);
     });
+
+    test('Category Rewards: completing 5 Work blocks unlocks work_starter badge', () {
+      final provider = ClockProvider();
+
+      for (int i = 0; i < 5; i++) {
+        final b = TimeBlock.create(
+          title: 'Work Task $i',
+          startHour: 9.0 + i,
+          endHour: 10.0 + i,
+          category: TaskCategory.work,
+        );
+        provider.addBlock(b);
+        provider.setBlockStatus(b.id, TaskStatus.completed);
+      }
+
+      expect(provider.gamification.getCompletedCountForCategory('work'), 5);
+      expect(provider.gamification.unlockedAchievements.containsKey('work_starter'), isTrue);
+    });
   });
 
   group('Gamification UI Widgets', () {
@@ -180,6 +199,7 @@ void main() {
 
       expect(find.text('Maestría del Tiempo'), findsOneWidget);
       expect(find.text('Racha Actual'), findsOneWidget);
+      expect(find.text('Maestría por Categorías'), findsOneWidget);
       expect(find.text('Medallas de Logros'), findsOneWidget);
       expect(find.text('Primer Paso'), findsOneWidget);
       expect(find.text('Madrugador'), findsOneWidget);

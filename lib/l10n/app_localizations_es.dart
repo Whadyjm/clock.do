@@ -453,6 +453,100 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get badgeBalancedLifeDesc => 'Completa bloques de al menos 3 categorías distintas en un día';
 
+  // Logros por Categoría: Trabajo
+  @override
+  String get badgeWorkStarterTitle => 'Iniciativa Laboral';
+  @override
+  String get badgeWorkStarterDesc => 'Completa 5 tareas de Trabajo';
+  @override
+  String get badgeWorkProTitle => 'Titán del Trabajo';
+  @override
+  String get badgeWorkProDesc => 'Completa 20 tareas de Trabajo';
+  @override
+  String get badgeWorkMasterTitle => 'Gran Estratega';
+  @override
+  String get badgeWorkMasterDesc => 'Completa 50 tareas de Trabajo';
+
+  // Logros por Categoría: Salud
+  @override
+  String get badgeHealthSparkTitle => 'Paso Saludable';
+  @override
+  String get badgeHealthSparkDesc => 'Completa 5 tareas de Salud y Bienestar';
+  @override
+  String get badgeHealthVitalityTitle => 'Cuerpo y Mente';
+  @override
+  String get badgeHealthVitalityDesc => 'Completa 20 tareas de Salud y Bienestar';
+  @override
+  String get badgeHealthZenTitle => 'Templo Zen';
+  @override
+  String get badgeHealthZenDesc => 'Completa 50 tareas de Salud y Bienestar';
+
+  // Logros por Categoría: Enfoque / Aprendizaje
+  @override
+  String get badgeLearningSparkTitle => 'Curiosidad Activa';
+  @override
+  String get badgeLearningSparkDesc => 'Completa 5 tareas de Enfoque y Estudio';
+  @override
+  String get badgeLearningDeepTitle => 'Mente Imparable';
+  @override
+  String get badgeLearningDeepDesc => 'Completa 20 tareas de Enfoque y Estudio';
+  @override
+  String get badgeLearningScholarTitle => 'Gran Erudito';
+  @override
+  String get badgeLearningScholarDesc => 'Completa 50 tareas de Enfoque y Estudio';
+
+  // Logros por Categoría: Personal
+  @override
+  String get badgePersonalSparkTitle => 'Tiempo para Mí';
+  @override
+  String get badgePersonalSparkDesc => 'Completa 5 tareas Personales';
+  @override
+  String get badgePersonalHarmonyTitle => 'Armonía Interior';
+  @override
+  String get badgePersonalHarmonyDesc => 'Completa 20 tareas Personales';
+  @override
+  String get badgePersonalZenTitle => 'Plenitud Total';
+  @override
+  String get badgePersonalZenDesc => 'Completa 50 tareas Personales';
+
+  // Logros por Categoría: Social
+  @override
+  String get badgeSocialSparkTitle => 'Buena Compañía';
+  @override
+  String get badgeSocialSparkDesc => 'Completa 5 tareas Sociales';
+  @override
+  String get badgeSocialConnectorTitle => 'Conector Nato';
+  @override
+  String get badgeSocialConnectorDesc => 'Completa 20 tareas Sociales';
+  @override
+  String get badgeSocialPillarTitle => 'Pilar Comunitario';
+  @override
+  String get badgeSocialPillarDesc => 'Completa 50 tareas Sociales';
+
+  // Logro de Sinergia Multicategoría
+  @override
+  String get badgeCategoryPolymathTitle => 'Polímata Integral';
+  @override
+  String get badgeCategoryPolymathDesc => 'Alcanza al menos 10 tareas completadas en 4 categorías distintas';
+
+  // Sección Maestría por Categorías
+  @override
+  String get categoryMasteryTitle => 'Maestría por Categorías';
+  @override
+  String get categoryMasterySubtitle => 'Alcanza hitos en tus distintas facetas de vida para ganar Ticks y prestigio.';
+  @override
+  String get filterAllCategoriesBadge => 'Todas';
+  @override
+  String get filterGeneralBadge => 'Generales';
+  @override
+  String categoryProgressText(int current, int target) => '$current de $target tareas';
+  @override
+  String categoryTasksCount(int count) => '$count tareas';
+  @override
+  String categoryMinutesCount(int minutes) => '$minutes min';
+  @override
+  String categoryBadgeLevel(int level) => 'Nivel $level';
+
   // ── Calendarios del Dispositivo ──
   @override
   String get deviceCalendarSettingsTitle => 'Calendarios del Dispositivo';

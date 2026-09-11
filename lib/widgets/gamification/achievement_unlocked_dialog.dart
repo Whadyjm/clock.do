@@ -97,6 +97,50 @@ class _AchievementCelebrationDialogState
       case 'badgeBalancedLifeTitle': return l10n.badgeBalancedLifeTitle;
       case 'badgeBalancedLifeDesc': return l10n.badgeBalancedLifeDesc;
 
+      // Trabajo
+      case 'badgeWorkStarterTitle': return l10n.badgeWorkStarterTitle;
+      case 'badgeWorkStarterDesc': return l10n.badgeWorkStarterDesc;
+      case 'badgeWorkProTitle': return l10n.badgeWorkProTitle;
+      case 'badgeWorkProDesc': return l10n.badgeWorkProDesc;
+      case 'badgeWorkMasterTitle': return l10n.badgeWorkMasterTitle;
+      case 'badgeWorkMasterDesc': return l10n.badgeWorkMasterDesc;
+
+      // Salud
+      case 'badgeHealthSparkTitle': return l10n.badgeHealthSparkTitle;
+      case 'badgeHealthSparkDesc': return l10n.badgeHealthSparkDesc;
+      case 'badgeHealthVitalityTitle': return l10n.badgeHealthVitalityTitle;
+      case 'badgeHealthVitalityDesc': return l10n.badgeHealthVitalityDesc;
+      case 'badgeHealthZenTitle': return l10n.badgeHealthZenTitle;
+      case 'badgeHealthZenDesc': return l10n.badgeHealthZenDesc;
+
+      // Enfoque
+      case 'badgeLearningSparkTitle': return l10n.badgeLearningSparkTitle;
+      case 'badgeLearningSparkDesc': return l10n.badgeLearningSparkDesc;
+      case 'badgeLearningDeepTitle': return l10n.badgeLearningDeepTitle;
+      case 'badgeLearningDeepDesc': return l10n.badgeLearningDeepDesc;
+      case 'badgeLearningScholarTitle': return l10n.badgeLearningScholarTitle;
+      case 'badgeLearningScholarDesc': return l10n.badgeLearningScholarDesc;
+
+      // Personal
+      case 'badgePersonalSparkTitle': return l10n.badgePersonalSparkTitle;
+      case 'badgePersonalSparkDesc': return l10n.badgePersonalSparkDesc;
+      case 'badgePersonalHarmonyTitle': return l10n.badgePersonalHarmonyTitle;
+      case 'badgePersonalHarmonyDesc': return l10n.badgePersonalHarmonyDesc;
+      case 'badgePersonalZenTitle': return l10n.badgePersonalZenTitle;
+      case 'badgePersonalZenDesc': return l10n.badgePersonalZenDesc;
+
+      // Social
+      case 'badgeSocialSparkTitle': return l10n.badgeSocialSparkTitle;
+      case 'badgeSocialSparkDesc': return l10n.badgeSocialSparkDesc;
+      case 'badgeSocialConnectorTitle': return l10n.badgeSocialConnectorTitle;
+      case 'badgeSocialConnectorDesc': return l10n.badgeSocialConnectorDesc;
+      case 'badgeSocialPillarTitle': return l10n.badgeSocialPillarTitle;
+      case 'badgeSocialPillarDesc': return l10n.badgeSocialPillarDesc;
+
+      // Sinergia
+      case 'badgeCategoryPolymathTitle': return l10n.badgeCategoryPolymathTitle;
+      case 'badgeCategoryPolymathDesc': return l10n.badgeCategoryPolymathDesc;
+
       default: return key;
     }
   }

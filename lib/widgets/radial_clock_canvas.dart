@@ -866,11 +866,11 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
                 ),
 
               // Botón flotante para activar/desactivar Modo Lupa
-              Positioned(
+              /*Positioned(
                 top: 4,
                 right: 4,
                 child: _buildMagnifierToggle(isDark),
-              ),
+              ),*/
 
               // Panel flotante de hora durante el gesto de creación
               if (_gestureStartAngle != null && _gestureCurrentAngle != null)
@@ -888,7 +888,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
 
   // ── Botón flotante de Modo Lupa ───────────────────────────
 
-  Widget _buildMagnifierToggle(bool isDark) {
+  /*Widget _buildMagnifierToggle(bool isDark) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -944,7 +944,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
         ),
       ),
     );
-  }
+  }*/
 
   // ── Tarjeta de Inspección Magnificada (Modo Lupa) ──────────
 

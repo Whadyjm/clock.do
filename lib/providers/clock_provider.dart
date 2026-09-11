@@ -1212,6 +1212,9 @@ class ClockProvider extends ChangeNotifier {
       }
     }
 
+    // Calcular estadísticas por categoría retroactivamente si aún no existen
+    _backfillCategoryStatsFromExistingData();
+
     // Cargar Configuración de Calendarios del Dispositivo
     if (prefs.containsKey(_kDeviceCalSyncEnabledKey)) {
       _deviceCalendarSyncEnabled = prefs.getBool(_kDeviceCalSyncEnabledKey) ?? false;
@@ -1261,7 +1264,41 @@ class ClockProvider extends ChangeNotifier {
     }
   }
 
-  /// Procesa la finalización de un bloque de tiempo (Ticks, Racha, Nivel y Logros).
+  /// Calcula retroactivamente las estadísticas por categoría a partir de bloques y notas existentes.
+  void _backfillCategoryStatsFromExistingData() {
+    if (_gamification.categoryCompletedTasks.isNotEmpty) return;
+
+    final catTasks = <String, int>{};
+    final catMins = <String, int>{};
+
+    for (final b in _blocks) {
+      if (b.status == TaskStatus.completed) {
+        final catId = b.category.id;
+        catTasks[catId] = (catTasks[catId] ?? 0) + 1;
+        final mins = (b.durationHours.abs() * 60).round().clamp(1, 1440);
+        catMins[catId] = (catMins[catId] ?? 0) + mins;
+      }
+    }
+
+    for (final t in _todoItems) {
+      if (t.isCompleted) {
+        final catId = t.category.id;
+        catTasks[catId] = (catTasks[catId] ?? 0) + 1;
+      }
+    }
+
+    if (catTasks.isNotEmpty || catMins.isNotEmpty) {
+      _gamification = _gamification.copyWith(
+        categoryCompletedTasks: catTasks,
+        categoryFocusMinutes: catMins,
+      );
+      _evaluateAchievements();
+      _saveGamificationToStorage();
+      _supabase.upsertGamification(_gamification);
+    }
+  }
+
+  /// Procesa la finalización de un bloque de tiempo (Ticks, Racha, Nivel, Logros y Categorías).
   void _onTaskCompleted(TimeBlock block) {
     final today = normalizeDate(_now);
     int ticksEarned = 25; // Base por bloque completado
@@ -1312,6 +1349,14 @@ class ClockProvider extends ChangeNotifier {
     final newTotalTasks = _gamification.totalCompletedTasks + 1;
     final newTotalMinutes = _gamification.totalFocusMinutes + durationMinutes;
 
+    // Actualización de estadísticas por categoría
+    final catId = block.category.id;
+    final updatedCategoryTasks = Map<String, int>.from(_gamification.categoryCompletedTasks);
+    updatedCategoryTasks[catId] = (updatedCategoryTasks[catId] ?? 0) + 1;
+
+    final updatedCategoryMinutes = Map<String, int>.from(_gamification.categoryFocusMinutes);
+    updatedCategoryMinutes[catId] = (updatedCategoryMinutes[catId] ?? 0) + durationMinutes;
+
     _gamification = _gamification.copyWith(
       ticks: newTicks,
       currentStreak: newStreak,
@@ -1319,6 +1364,8 @@ class ClockProvider extends ChangeNotifier {
       lastActiveDate: today,
       totalCompletedTasks: newTotalTasks,
       totalFocusMinutes: newTotalMinutes,
+      categoryCompletedTasks: updatedCategoryTasks,
+      categoryFocusMinutes: updatedCategoryMinutes,
     );
 
     // Verificar si subió de nivel
@@ -1327,7 +1374,7 @@ class ClockProvider extends ChangeNotifier {
       _latestLevelUp = newLevel;
     }
 
-    // Evaluar catálogo de logros
+    // Evaluar catálogo de logros generales y de categorías
     _evaluateAchievements(triggerBlock: block);
 
     _saveGamificationToStorage();
@@ -1338,7 +1385,16 @@ class ClockProvider extends ChangeNotifier {
   void _onTodoCompleted(TodoItem item) {
     final oldLevel = _gamification.currentLevel;
     final newTicks = _gamification.ticks + 15;
-    _gamification = _gamification.copyWith(ticks: newTicks);
+
+    // Actualización de estadísticas por categoría para el ToDo
+    final catId = item.category.id;
+    final updatedCategoryTasks = Map<String, int>.from(_gamification.categoryCompletedTasks);
+    updatedCategoryTasks[catId] = (updatedCategoryTasks[catId] ?? 0) + 1;
+
+    _gamification = _gamification.copyWith(
+      ticks: newTicks,
+      categoryCompletedTasks: updatedCategoryTasks,
+    );
 
     final newLevel = _gamification.currentLevel;
     if (newLevel.level > oldLevel.level) {
@@ -1350,6 +1406,9 @@ class ClockProvider extends ChangeNotifier {
     if (completedTodosCount >= 5) {
       _unlockAchievement('clean_slate');
     }
+
+    // Evaluar logros de categoría
+    _evaluateCategoryAchievements();
 
     _saveGamificationToStorage();
     _supabase.upsertGamification(_gamification);
@@ -1436,6 +1495,32 @@ class ClockProvider extends ChangeNotifier {
         .toSet();
     if (completedCats.length >= 3) {
       _unlockAchievement('balanced_life');
+    }
+
+    // 10. Recompensas por Categoría y Sinergia
+    _evaluateCategoryAchievements();
+  }
+
+  /// Evalúa logros específicos basados en tareas completadas por categoría y sinergia
+  void _evaluateCategoryAchievements() {
+    for (final ach in Achievement.catalog) {
+      if (ach.categoryId != null && ach.targetCount != null) {
+        final count = _gamification.getCompletedCountForCategory(ach.categoryId!);
+        if (count >= ach.targetCount!) {
+          _unlockAchievement(ach.id);
+        }
+      }
+    }
+
+    // Sinergia Multicategoría (Polímata Integral: al menos 10 tareas en 4 categorías distintas)
+    int categoriesWith10OrMore = 0;
+    _gamification.categoryCompletedTasks.forEach((_, count) {
+      if (count >= 10) {
+        categoriesWith10OrMore++;
+      }
+    });
+    if (categoriesWith10OrMore >= 4) {
+      _unlockAchievement('category_polymath');
     }
   }
 

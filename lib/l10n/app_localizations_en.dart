@@ -453,6 +453,100 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get badgeBalancedLifeDesc => 'Complete blocks from at least 3 different categories in a day';
 
+  // Category Rewards: Work
+  @override
+  String get badgeWorkStarterTitle => 'Work Starter';
+  @override
+  String get badgeWorkStarterDesc => 'Complete 5 Work tasks';
+  @override
+  String get badgeWorkProTitle => 'Work Titan';
+  @override
+  String get badgeWorkProDesc => 'Complete 20 Work tasks';
+  @override
+  String get badgeWorkMasterTitle => 'Master Strategist';
+  @override
+  String get badgeWorkMasterDesc => 'Complete 50 Work tasks';
+
+  // Category Rewards: Health
+  @override
+  String get badgeHealthSparkTitle => 'Health Spark';
+  @override
+  String get badgeHealthSparkDesc => 'Complete 5 Health & Wellness tasks';
+  @override
+  String get badgeHealthVitalityTitle => 'Body & Mind';
+  @override
+  String get badgeHealthVitalityDesc => 'Complete 20 Health & Wellness tasks';
+  @override
+  String get badgeHealthZenTitle => 'Zen Temple';
+  @override
+  String get badgeHealthZenDesc => 'Complete 50 Health & Wellness tasks';
+
+  // Category Rewards: Focus / Learning
+  @override
+  String get badgeLearningSparkTitle => 'Curious Mind';
+  @override
+  String get badgeLearningSparkDesc => 'Complete 5 Focus & Study tasks';
+  @override
+  String get badgeLearningDeepTitle => 'Unstoppable Mind';
+  @override
+  String get badgeLearningDeepDesc => 'Complete 20 Focus & Study tasks';
+  @override
+  String get badgeLearningScholarTitle => 'Grand Scholar';
+  @override
+  String get badgeLearningScholarDesc => 'Complete 50 Focus & Study tasks';
+
+  // Category Rewards: Personal
+  @override
+  String get badgePersonalSparkTitle => 'Me Time';
+  @override
+  String get badgePersonalSparkDesc => 'Complete 5 Personal tasks';
+  @override
+  String get badgePersonalHarmonyTitle => 'Inner Harmony';
+  @override
+  String get badgePersonalHarmonyDesc => 'Complete 20 Personal tasks';
+  @override
+  String get badgePersonalZenTitle => 'Pure Serenity';
+  @override
+  String get badgePersonalZenDesc => 'Complete 50 Personal tasks';
+
+  // Category Rewards: Social
+  @override
+  String get badgeSocialSparkTitle => 'Good Company';
+  @override
+  String get badgeSocialSparkDesc => 'Complete 5 Social tasks';
+  @override
+  String get badgeSocialConnectorTitle => 'Natural Connector';
+  @override
+  String get badgeSocialConnectorDesc => 'Complete 20 Social tasks';
+  @override
+  String get badgeSocialPillarTitle => 'Community Pillar';
+  @override
+  String get badgeSocialPillarDesc => 'Complete 50 Social tasks';
+
+  // Synergy Achievement
+  @override
+  String get badgeCategoryPolymathTitle => 'Full Spectrum Polymath';
+  @override
+  String get badgeCategoryPolymathDesc => 'Reach at least 10 tasks completed in 4 different categories';
+
+  // Category Mastery Section
+  @override
+  String get categoryMasteryTitle => 'Category Mastery';
+  @override
+  String get categoryMasterySubtitle => 'Reach milestones across different life areas to earn Ticks and prestige.';
+  @override
+  String get filterAllCategoriesBadge => 'All';
+  @override
+  String get filterGeneralBadge => 'General';
+  @override
+  String categoryProgressText(int current, int target) => '$current of $target tasks';
+  @override
+  String categoryTasksCount(int count) => '$count tasks';
+  @override
+  String categoryMinutesCount(int minutes) => '$minutes min';
+  @override
+  String categoryBadgeLevel(int level) => 'Level $level';
+
   // ── Device Calendars ──
   @override
   String get deviceCalendarSettingsTitle => 'Device Calendars';

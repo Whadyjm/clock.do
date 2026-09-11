@@ -3,11 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/gamification_data.dart';
+import '../../models/task_category.dart';
 import '../../providers/clock_provider.dart';
 import '../../l10n/app_localizations.dart';
 
-/// Modal principal de Maestría del Tiempo (Nivel, Rachas, Logros y Estadísticas).
-class GamificationSheet extends StatelessWidget {
+/// Modal principal de Maestría del Tiempo (Nivel, Rachas, Categorías, Logros y Estadísticas).
+class GamificationSheet extends StatefulWidget {
   const GamificationSheet({super.key});
 
   static Future<void> show(BuildContext context) {
@@ -24,6 +25,13 @@ class GamificationSheet extends StatelessWidget {
     );
   }
 
+  @override
+  State<GamificationSheet> createState() => _GamificationSheetState();
+}
+
+class _GamificationSheetState extends State<GamificationSheet> {
+  String _selectedCategoryFilter = 'all';
+
   String _getLocalizedText(BuildContext context, String key) {
     final l10n = context.l10n;
     switch (key) {
@@ -35,7 +43,7 @@ class GamificationSheet extends StatelessWidget {
       case 'level5Title': return l10n.level5Title;
       case 'level6Title': return l10n.level6Title;
 
-      // Logros
+      // Logros Generales
       case 'badgeFirstStepTitle': return l10n.badgeFirstStepTitle;
       case 'badgeFirstStepDesc': return l10n.badgeFirstStepDesc;
       case 'badgeEarlyBirdTitle': return l10n.badgeEarlyBirdTitle;
@@ -56,6 +64,50 @@ class GamificationSheet extends StatelessWidget {
       case 'badgeCleanSlateDesc': return l10n.badgeCleanSlateDesc;
       case 'badgeBalancedLifeTitle': return l10n.badgeBalancedLifeTitle;
       case 'badgeBalancedLifeDesc': return l10n.badgeBalancedLifeDesc;
+
+      // Logros por Categoría: Trabajo
+      case 'badgeWorkStarterTitle': return l10n.badgeWorkStarterTitle;
+      case 'badgeWorkStarterDesc': return l10n.badgeWorkStarterDesc;
+      case 'badgeWorkProTitle': return l10n.badgeWorkProTitle;
+      case 'badgeWorkProDesc': return l10n.badgeWorkProDesc;
+      case 'badgeWorkMasterTitle': return l10n.badgeWorkMasterTitle;
+      case 'badgeWorkMasterDesc': return l10n.badgeWorkMasterDesc;
+
+      // Logros por Categoría: Salud
+      case 'badgeHealthSparkTitle': return l10n.badgeHealthSparkTitle;
+      case 'badgeHealthSparkDesc': return l10n.badgeHealthSparkDesc;
+      case 'badgeHealthVitalityTitle': return l10n.badgeHealthVitalityTitle;
+      case 'badgeHealthVitalityDesc': return l10n.badgeHealthVitalityDesc;
+      case 'badgeHealthZenTitle': return l10n.badgeHealthZenTitle;
+      case 'badgeHealthZenDesc': return l10n.badgeHealthZenDesc;
+
+      // Logros por Categoría: Enfoque
+      case 'badgeLearningSparkTitle': return l10n.badgeLearningSparkTitle;
+      case 'badgeLearningSparkDesc': return l10n.badgeLearningSparkDesc;
+      case 'badgeLearningDeepTitle': return l10n.badgeLearningDeepTitle;
+      case 'badgeLearningDeepDesc': return l10n.badgeLearningDeepDesc;
+      case 'badgeLearningScholarTitle': return l10n.badgeLearningScholarTitle;
+      case 'badgeLearningScholarDesc': return l10n.badgeLearningScholarDesc;
+
+      // Logros por Categoría: Personal
+      case 'badgePersonalSparkTitle': return l10n.badgePersonalSparkTitle;
+      case 'badgePersonalSparkDesc': return l10n.badgePersonalSparkDesc;
+      case 'badgePersonalHarmonyTitle': return l10n.badgePersonalHarmonyTitle;
+      case 'badgePersonalHarmonyDesc': return l10n.badgePersonalHarmonyDesc;
+      case 'badgePersonalZenTitle': return l10n.badgePersonalZenTitle;
+      case 'badgePersonalZenDesc': return l10n.badgePersonalZenDesc;
+
+      // Logros por Categoría: Social
+      case 'badgeSocialSparkTitle': return l10n.badgeSocialSparkTitle;
+      case 'badgeSocialSparkDesc': return l10n.badgeSocialSparkDesc;
+      case 'badgeSocialConnectorTitle': return l10n.badgeSocialConnectorTitle;
+      case 'badgeSocialConnectorDesc': return l10n.badgeSocialConnectorDesc;
+      case 'badgeSocialPillarTitle': return l10n.badgeSocialPillarTitle;
+      case 'badgeSocialPillarDesc': return l10n.badgeSocialPillarDesc;
+
+      // Sinergia
+      case 'badgeCategoryPolymathTitle': return l10n.badgeCategoryPolymathTitle;
+      case 'badgeCategoryPolymathDesc': return l10n.badgeCategoryPolymathDesc;
 
       default: return key;
     }
@@ -191,6 +243,11 @@ class GamificationSheet extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
+                  // ── Sección: Maestría por Categorías ────────────
+                  _buildCategoryMasterySection(context, gamification, isDark),
+
+                  const SizedBox(height: 24),
+
                   // ── Sección 4: Catálogo de Medallas ────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -226,10 +283,21 @@ class GamificationSheet extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // Grid de Medallas
-                  ...gamification.achievementsList.map(
-                    (ach) => _buildAchievementTile(context, ach, isDark),
-                  ),
+                  // Barra de Filtros por Categoría
+                  _buildAchievementCategoryFilterChips(context, isDark),
+
+                  const SizedBox(height: 12),
+
+                  // Grid de Medallas filtradas
+                  ...gamification.achievementsList
+                      .where((ach) {
+                        if (_selectedCategoryFilter == 'all') return true;
+                        if (_selectedCategoryFilter == 'general') return ach.categoryId == null;
+                        return ach.categoryId == _selectedCategoryFilter;
+                      })
+                      .map(
+                        (ach) => _buildAchievementTile(context, ach, isDark, gamification),
+                      ),
 
                   const SizedBox(height: 20),
 
@@ -675,11 +743,31 @@ class GamificationSheet extends StatelessWidget {
     BuildContext context,
     Achievement ach,
     bool isDark,
+    GamificationData data,
   ) {
     final l10n = context.l10n;
     final isUnlocked = ach.isUnlocked;
     final cardBg = isDark ? const Color(0xFF1B1E32) : const Color(0xFFF9F8FF);
     final borderColor = isDark ? const Color(0xFF2A2E48) : const Color(0xFFEAE5FF);
+
+    TaskCategory? category;
+    if (ach.categoryId != null) {
+      for (final def in TaskCategory.defaultCategories) {
+        if (def.id == ach.categoryId) {
+          category = def;
+          break;
+        }
+      }
+    }
+
+    int currentProgress = 0;
+    if (ach.targetCount != null) {
+      if (ach.categoryId != null) {
+        currentProgress = data.getCompletedCountForCategory(ach.categoryId!);
+      } else if (ach.id == 'category_polymath') {
+        currentProgress = data.categoryCompletedTasks.values.where((c) => c >= 10).length;
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -724,15 +812,46 @@ class GamificationSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _getLocalizedText(context, ach.titleKey),
-                  style: TextStyle(
-                    color: isUnlocked
-                        ? (isDark ? Colors.white : const Color(0xFF1E1B4B))
-                        : (isDark ? const Color(0xFF7A809E) : const Color(0xFF8E91A6)),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _getLocalizedText(context, ach.titleKey),
+                        style: TextStyle(
+                          color: isUnlocked
+                              ? (isDark ? Colors.white : const Color(0xFF1E1B4B))
+                              : (isDark ? const Color(0xFF7A809E) : const Color(0xFF8E91A6)),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (category != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: category.color.withValues(alpha: isUnlocked ? 0.2 : 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(category.icon, size: 10, color: category.color),
+                            const SizedBox(width: 3),
+                            Text(
+                              category.getLocalizedName(context),
+                              style: TextStyle(
+                                color: category.color,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -742,6 +861,33 @@ class GamificationSheet extends StatelessWidget {
                     fontSize: 11.5,
                   ),
                 ),
+                if (!isUnlocked && ach.targetCount != null) ...[
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: (currentProgress / ach.targetCount!).clamp(0.0, 1.0),
+                            minHeight: 4,
+                            backgroundColor: isDark ? const Color(0xFF25293E) : const Color(0xFFE8E7F0),
+                            valueColor: AlwaysStoppedAnimation<Color>(ach.color),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        l10n.categoryProgressText(currentProgress.clamp(0, ach.targetCount!), ach.targetCount!),
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFF8E95B3) : const Color(0xFF7D83A4),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (isUnlocked && ach.unlockedAt != null) ...[
                   const SizedBox(height: 3),
                   Text(
@@ -780,6 +926,316 @@ class GamificationSheet extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Sección: Maestría por Categorías
+  // ──────────────────────────────────────────────
+
+  Widget _buildCategoryMasterySection(
+    BuildContext context,
+    GamificationData data,
+    bool isDark,
+  ) {
+    final l10n = context.l10n;
+    final mainCategories = TaskCategory.defaultCategories
+        .where((c) => c.id != 'none')
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.auto_awesome_mosaic_rounded,
+                color: Color(0xFF6C5CE7),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              l10n.categoryMasteryTitle,
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.categoryMasterySubtitle,
+          style: TextStyle(
+            color: isDark ? const Color(0xFFA5ABC4) : const Color(0xFF6B7194),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Carrusel horizontal de tarjetas de categoría
+        SizedBox(
+          height: 145,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: mainCategories.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final cat = mainCategories[index];
+              return _buildCategoryMasteryCard(context, cat, data, isDark);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryMasteryCard(
+    BuildContext context,
+    TaskCategory cat,
+    GamificationData data,
+    bool isDark,
+  ) {
+    final l10n = context.l10n;
+    final count = data.getCompletedCountForCategory(cat.id);
+    final minutes = data.getFocusMinutesForCategory(cat.id);
+    final isSelected = _selectedCategoryFilter == cat.id;
+
+    // Calcular nivel y próxima meta
+    int level = 0;
+    int nextTarget = 5;
+    if (count >= 50) {
+      level = 3;
+      nextTarget = 50;
+    } else if (count >= 20) {
+      level = 2;
+      nextTarget = 50;
+    } else if (count >= 5) {
+      level = 1;
+      nextTarget = 20;
+    } else {
+      level = 0;
+      nextTarget = 5;
+    }
+
+    final double progress = (count / nextTarget).clamp(0.0, 1.0);
+    final cardBg = isDark ? const Color(0xFF1B1E32) : const Color(0xFFF9F8FF);
+    final borderColor = isSelected
+        ? cat.color
+        : (isDark ? const Color(0xFF2A2E48) : const Color(0xFFEAE5FF));
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _selectedCategoryFilter = isSelected ? 'all' : cat.id;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 170,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: borderColor,
+            width: isSelected ? 2.0 : 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: cat.color.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Cabecera: Icono y Nivel
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: cat.color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(cat.icon, color: cat.color, size: 18),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: cat.color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    l10n.categoryBadgeLevel(level),
+                    style: TextStyle(
+                      color: cat.color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            // Nombre y métricas
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cat.getLocalizedName(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${l10n.categoryTasksCount(count)} • ${l10n.categoryMinutesCount(minutes)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFA5ABC4) : const Color(0xFF7A809E),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+
+            // Barra de progreso hacia la siguiente recompensa
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 4.5,
+                    backgroundColor: isDark ? const Color(0xFF282C44) : const Color(0xFFE8E7F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(cat.color),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      count >= 50
+                          ? '100%'
+                          : l10n.categoryProgressText(count, nextTarget),
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFF8E95B3) : const Color(0xFF7D83A4),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (isSelected)
+                      Icon(Icons.check_circle_rounded, size: 12, color: cat.color),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Filtros de Categoría para Medallas ────────────
+
+  Widget _buildAchievementCategoryFilterChips(BuildContext context, bool isDark) {
+    final l10n = context.l10n;
+    final filters = <Map<String, dynamic>>[
+      {'id': 'all', 'label': l10n.filterAllCategoriesBadge, 'icon': Icons.grid_view_rounded, 'color': const Color(0xFF6C5CE7)},
+      {'id': 'work', 'label': TaskCategory.work.getLocalizedName(context), 'icon': TaskCategory.work.icon, 'color': TaskCategory.work.color},
+      {'id': 'health', 'label': TaskCategory.health.getLocalizedName(context), 'icon': TaskCategory.health.icon, 'color': TaskCategory.health.color},
+      {'id': 'learning', 'label': TaskCategory.learning.getLocalizedName(context), 'icon': TaskCategory.learning.icon, 'color': TaskCategory.learning.color},
+      {'id': 'personal', 'label': TaskCategory.personal.getLocalizedName(context), 'icon': TaskCategory.personal.icon, 'color': TaskCategory.personal.color},
+      {'id': 'social', 'label': TaskCategory.social.getLocalizedName(context), 'icon': TaskCategory.social.icon, 'color': TaskCategory.social.color},
+      {'id': 'general', 'label': l10n.filterGeneralBadge, 'icon': Icons.stars_rounded, 'color': const Color(0xFF747D8C)},
+    ];
+
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final f = filters[index];
+          final isSelected = _selectedCategoryFilter == f['id'];
+          final Color color = f['color'] as Color;
+
+          return InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _selectedCategoryFilter = f['id'] as String;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? color.withValues(alpha: 0.18)
+                    : (isDark ? const Color(0xFF1F2338) : const Color(0xFFF1F0F7)),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? color : Colors.transparent,
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    f['icon'] as IconData,
+                    size: 14,
+                    color: isSelected ? color : (isDark ? const Color(0xFFA5ABC4) : const Color(0xFF6B7194)),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    f['label'] as String,
+                    style: TextStyle(
+                      color: isSelected
+                          ? (isDark ? Colors.white : color)
+                          : (isDark ? const Color(0xFFA5ABC4) : const Color(0xFF6B7194)),
+                      fontSize: 11.5,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

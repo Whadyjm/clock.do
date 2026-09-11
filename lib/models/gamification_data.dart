@@ -96,6 +96,8 @@ class Achievement {
   final Color color;
   final int pointsReward;
   final DateTime? unlockedAt;
+  final String? categoryId; // ID de la categoría asociada (ej: 'work', 'health', etc.)
+  final int? targetCount; // Meta requerida para desbloquearlo
 
   const Achievement({
     required this.id,
@@ -105,6 +107,8 @@ class Achievement {
     required this.color,
     required this.pointsReward,
     this.unlockedAt,
+    this.categoryId,
+    this.targetCount,
   });
 
   bool get isUnlocked => unlockedAt != null;
@@ -118,10 +122,13 @@ class Achievement {
       color: color,
       pointsReward: pointsReward,
       unlockedAt: unlockedAt ?? this.unlockedAt,
+      categoryId: categoryId,
+      targetCount: targetCount,
     );
   }
 
   static const List<Achievement> catalog = [
+    // ── Logros Generales de Productividad ──
     Achievement(
       id: 'first_step',
       titleKey: 'badgeFirstStepTitle',
@@ -202,10 +209,181 @@ class Achievement {
       color: Color(0xFF9B59B6),
       pointsReward: 45,
     ),
+
+    // ── Recompensas de Categoría: Trabajo (Work) ──
+    Achievement(
+      id: 'work_starter',
+      titleKey: 'badgeWorkStarterTitle',
+      descriptionKey: 'badgeWorkStarterDesc',
+      icon: Icons.work_outline_rounded,
+      color: Color(0xFFFED330),
+      pointsReward: 30,
+      categoryId: 'work',
+      targetCount: 5,
+    ),
+    Achievement(
+      id: 'work_pro',
+      titleKey: 'badgeWorkProTitle',
+      descriptionKey: 'badgeWorkProDesc',
+      icon: Icons.business_center_rounded,
+      color: Color(0xFFF39C12),
+      pointsReward: 60,
+      categoryId: 'work',
+      targetCount: 20,
+    ),
+    Achievement(
+      id: 'work_master',
+      titleKey: 'badgeWorkMasterTitle',
+      descriptionKey: 'badgeWorkMasterDesc',
+      icon: Icons.domain_rounded,
+      color: Color(0xFFE67E22),
+      pointsReward: 120,
+      categoryId: 'work',
+      targetCount: 50,
+    ),
+
+    // ── Recompensas de Categoría: Salud (Health) ──
+    Achievement(
+      id: 'health_spark',
+      titleKey: 'badgeHealthSparkTitle',
+      descriptionKey: 'badgeHealthSparkDesc',
+      icon: Icons.spa_outlined,
+      color: Color(0xFF2ED573),
+      pointsReward: 30,
+      categoryId: 'health',
+      targetCount: 5,
+    ),
+    Achievement(
+      id: 'health_vitality',
+      titleKey: 'badgeHealthVitalityTitle',
+      descriptionKey: 'badgeHealthVitalityDesc',
+      icon: Icons.favorite_outline_rounded,
+      color: Color(0xFF00B894),
+      pointsReward: 60,
+      categoryId: 'health',
+      targetCount: 20,
+    ),
+    Achievement(
+      id: 'health_zen',
+      titleKey: 'badgeHealthZenTitle',
+      descriptionKey: 'badgeHealthZenDesc',
+      icon: Icons.self_improvement_rounded,
+      color: Color(0xFF10AC84),
+      pointsReward: 120,
+      categoryId: 'health',
+      targetCount: 50,
+    ),
+
+    // ── Recompensas de Categoría: Enfoque / Estudio (Learning) ──
+    Achievement(
+      id: 'learning_spark',
+      titleKey: 'badgeLearningSparkTitle',
+      descriptionKey: 'badgeLearningSparkDesc',
+      icon: Icons.lightbulb_outline_rounded,
+      color: Color(0xFF70A1FF),
+      pointsReward: 30,
+      categoryId: 'learning',
+      targetCount: 5,
+    ),
+    Achievement(
+      id: 'learning_deep',
+      titleKey: 'badgeLearningDeepTitle',
+      descriptionKey: 'badgeLearningDeepDesc',
+      icon: Icons.psychology_rounded,
+      color: Color(0xFF1E90FF),
+      pointsReward: 60,
+      categoryId: 'learning',
+      targetCount: 20,
+    ),
+    Achievement(
+      id: 'learning_scholar',
+      titleKey: 'badgeLearningScholarTitle',
+      descriptionKey: 'badgeLearningScholarDesc',
+      icon: Icons.school_rounded,
+      color: Color(0xFF3742FA),
+      pointsReward: 120,
+      categoryId: 'learning',
+      targetCount: 50,
+    ),
+
+    // ── Recompensas de Categoría: Personal ──
+    Achievement(
+      id: 'personal_spark',
+      titleKey: 'badgePersonalSparkTitle',
+      descriptionKey: 'badgePersonalSparkDesc',
+      icon: Icons.person_outline_rounded,
+      color: Color(0xFFFF6B81),
+      pointsReward: 30,
+      categoryId: 'personal',
+      targetCount: 5,
+    ),
+    Achievement(
+      id: 'personal_harmony',
+      titleKey: 'badgePersonalHarmonyTitle',
+      descriptionKey: 'badgePersonalHarmonyDesc',
+      icon: Icons.sentiment_very_satisfied_rounded,
+      color: Color(0xFFFF4757),
+      pointsReward: 60,
+      categoryId: 'personal',
+      targetCount: 20,
+    ),
+    Achievement(
+      id: 'personal_zen',
+      titleKey: 'badgePersonalZenTitle',
+      descriptionKey: 'badgePersonalZenDesc',
+      icon: Icons.yard_rounded,
+      color: Color(0xFFED4C67),
+      pointsReward: 120,
+      categoryId: 'personal',
+      targetCount: 50,
+    ),
+
+    // ── Recompensas de Categoría: Social ──
+    Achievement(
+      id: 'social_spark',
+      titleKey: 'badgeSocialSparkTitle',
+      descriptionKey: 'badgeSocialSparkDesc',
+      icon: Icons.chat_bubble_outline_rounded,
+      color: Color(0xFFA55EEA),
+      pointsReward: 30,
+      categoryId: 'social',
+      targetCount: 5,
+    ),
+    Achievement(
+      id: 'social_connector',
+      titleKey: 'badgeSocialConnectorTitle',
+      descriptionKey: 'badgeSocialConnectorDesc',
+      icon: Icons.groups_rounded,
+      color: Color(0xFF8854D0),
+      pointsReward: 60,
+      categoryId: 'social',
+      targetCount: 20,
+    ),
+    Achievement(
+      id: 'social_pillar',
+      titleKey: 'badgeSocialPillarTitle',
+      descriptionKey: 'badgeSocialPillarDesc',
+      icon: Icons.diversity_3_rounded,
+      color: Color(0xFF5F27CD),
+      pointsReward: 120,
+      categoryId: 'social',
+      targetCount: 50,
+    ),
+
+    // ── Sinergia Multicategoría ──
+    Achievement(
+      id: 'category_polymath',
+      titleKey: 'badgeCategoryPolymathTitle',
+      descriptionKey: 'badgeCategoryPolymathDesc',
+      icon: Icons.all_inclusive_rounded,
+      color: Color(0xFF00CEC9),
+      pointsReward: 150,
+      targetCount: 4,
+    ),
   ];
 }
 
-/// Estado global de la gamificación del usuario (Ticks, Rachas, Logros y Estadísticas).
+/// Estado global de la gamificación del usuario (Ticks, Rachas, Logros y Estadísticas por Categoría).
 class GamificationData {
   final int ticks;
   final int currentStreak;
@@ -215,6 +393,8 @@ class GamificationData {
   final int totalCompletedTasks;
   final int totalFocusMinutes;
   final Map<String, DateTime> unlockedAchievements;
+  final Map<String, int> categoryCompletedTasks;
+  final Map<String, int> categoryFocusMinutes;
 
   const GamificationData({
     this.ticks = 0,
@@ -225,6 +405,8 @@ class GamificationData {
     this.totalCompletedTasks = 0,
     this.totalFocusMinutes = 0,
     this.unlockedAchievements = const {},
+    this.categoryCompletedTasks = const {},
+    this.categoryFocusMinutes = const {},
   });
 
   /// Nivel actual basado en los Ticks acumulados
@@ -267,6 +449,19 @@ class GamificationData {
   int get unlockedAchievementsCount => unlockedAchievements.length;
   int get totalAchievementsCount => Achievement.catalog.length;
 
+  /// Retorna la cantidad de tareas completadas para una categoría dada
+  int getCompletedCountForCategory(String categoryId) =>
+      categoryCompletedTasks[categoryId] ?? 0;
+
+  /// Retorna los minutos dedicados a una categoría dada
+  int getFocusMinutesForCategory(String categoryId) =>
+      categoryFocusMinutes[categoryId] ?? 0;
+
+  /// Retorna la lista de logros asociados a una categoría específica (o generales si categoryId == null)
+  List<Achievement> getAchievementsForCategory(String? categoryId) {
+    return achievementsList.where((a) => a.categoryId == categoryId).toList();
+  }
+
   GamificationData copyWith({
     int? ticks,
     int? currentStreak,
@@ -276,6 +471,8 @@ class GamificationData {
     int? totalCompletedTasks,
     int? totalFocusMinutes,
     Map<String, DateTime>? unlockedAchievements,
+    Map<String, int>? categoryCompletedTasks,
+    Map<String, int>? categoryFocusMinutes,
   }) {
     return GamificationData(
       ticks: ticks ?? this.ticks,
@@ -286,6 +483,9 @@ class GamificationData {
       totalCompletedTasks: totalCompletedTasks ?? this.totalCompletedTasks,
       totalFocusMinutes: totalFocusMinutes ?? this.totalFocusMinutes,
       unlockedAchievements: unlockedAchievements ?? this.unlockedAchievements,
+      categoryCompletedTasks:
+          categoryCompletedTasks ?? this.categoryCompletedTasks,
+      categoryFocusMinutes: categoryFocusMinutes ?? this.categoryFocusMinutes,
     );
   }
 
@@ -306,6 +506,8 @@ class GamificationData {
       'totalCompletedTasks': totalCompletedTasks,
       'totalFocusMinutes': totalFocusMinutes,
       'unlockedAchievements': achievementsMap,
+      'categoryCompletedTasks': categoryCompletedTasks,
+      'categoryFocusMinutes': categoryFocusMinutes,
     };
   }
 
@@ -321,6 +523,22 @@ class GamificationData {
       });
     }
 
+    final catTasksRaw = json['categoryCompletedTasks'];
+    final catTasksMap = <String, int>{};
+    if (catTasksRaw is Map) {
+      catTasksRaw.forEach((k, v) {
+        if (v is num) catTasksMap[k.toString()] = v.toInt();
+      });
+    }
+
+    final catMinRaw = json['categoryFocusMinutes'];
+    final catMinMap = <String, int>{};
+    if (catMinRaw is Map) {
+      catMinRaw.forEach((k, v) {
+        if (v is num) catMinMap[k.toString()] = v.toInt();
+      });
+    }
+
     return GamificationData(
       ticks: (json['ticks'] as num?)?.toInt() ?? 0,
       currentStreak: (json['currentStreak'] as num?)?.toInt() ?? 0,
@@ -332,6 +550,8 @@ class GamificationData {
       totalCompletedTasks: (json['totalCompletedTasks'] as num?)?.toInt() ?? 0,
       totalFocusMinutes: (json['totalFocusMinutes'] as num?)?.toInt() ?? 0,
       unlockedAchievements: achMap,
+      categoryCompletedTasks: catTasksMap,
+      categoryFocusMinutes: catMinMap,
     );
   }
 
@@ -355,6 +575,10 @@ class GamificationData {
       'total_completed_tasks': totalCompletedTasks,
       'total_focus_minutes': totalFocusMinutes,
       'unlocked_achievements': achievementsList,
+      'category_stats': {
+        'tasks': categoryCompletedTasks,
+        'minutes': categoryFocusMinutes,
+      },
     };
   }
 
@@ -377,6 +601,24 @@ class GamificationData {
       parsedDate = DateTime.tryParse(map['last_active_date'].toString());
     }
 
+    final catStatsRaw = map['category_stats'];
+    final catTasksMap = <String, int>{};
+    final catMinMap = <String, int>{};
+    if (catStatsRaw is Map) {
+      final tasks = catStatsRaw['tasks'];
+      if (tasks is Map) {
+        tasks.forEach((k, v) {
+          if (v is num) catTasksMap[k.toString()] = v.toInt();
+        });
+      }
+      final mins = catStatsRaw['minutes'];
+      if (mins is Map) {
+        mins.forEach((k, v) {
+          if (v is num) catMinMap[k.toString()] = v.toInt();
+        });
+      }
+    }
+
     return GamificationData(
       ticks: (map['ticks'] as num?)?.toInt() ?? 0,
       currentStreak: (map['current_streak'] as num?)?.toInt() ?? 0,
@@ -386,6 +628,8 @@ class GamificationData {
       totalCompletedTasks: (map['total_completed_tasks'] as num?)?.toInt() ?? 0,
       totalFocusMinutes: (map['total_focus_minutes'] as num?)?.toInt() ?? 0,
       unlockedAchievements: achMap,
+      categoryCompletedTasks: catTasksMap,
+      categoryFocusMinutes: catMinMap,
     );
   }
 }

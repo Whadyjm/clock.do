@@ -275,6 +275,60 @@ abstract class AppLocalizations {
   String get badgeBalancedLifeTitle;
   String get badgeBalancedLifeDesc;
 
+  // Logros por Categoría: Trabajo
+  String get badgeWorkStarterTitle;
+  String get badgeWorkStarterDesc;
+  String get badgeWorkProTitle;
+  String get badgeWorkProDesc;
+  String get badgeWorkMasterTitle;
+  String get badgeWorkMasterDesc;
+
+  // Logros por Categoría: Salud
+  String get badgeHealthSparkTitle;
+  String get badgeHealthSparkDesc;
+  String get badgeHealthVitalityTitle;
+  String get badgeHealthVitalityDesc;
+  String get badgeHealthZenTitle;
+  String get badgeHealthZenDesc;
+
+  // Logros por Categoría: Enfoque / Aprendizaje
+  String get badgeLearningSparkTitle;
+  String get badgeLearningSparkDesc;
+  String get badgeLearningDeepTitle;
+  String get badgeLearningDeepDesc;
+  String get badgeLearningScholarTitle;
+  String get badgeLearningScholarDesc;
+
+  // Logros por Categoría: Personal
+  String get badgePersonalSparkTitle;
+  String get badgePersonalSparkDesc;
+  String get badgePersonalHarmonyTitle;
+  String get badgePersonalHarmonyDesc;
+  String get badgePersonalZenTitle;
+  String get badgePersonalZenDesc;
+
+  // Logros por Categoría: Social
+  String get badgeSocialSparkTitle;
+  String get badgeSocialSparkDesc;
+  String get badgeSocialConnectorTitle;
+  String get badgeSocialConnectorDesc;
+  String get badgeSocialPillarTitle;
+  String get badgeSocialPillarDesc;
+
+  // Logro de Sinergia Multicategoría
+  String get badgeCategoryPolymathTitle;
+  String get badgeCategoryPolymathDesc;
+
+  // Sección Maestría por Categorías
+  String get categoryMasteryTitle;
+  String get categoryMasterySubtitle;
+  String get filterAllCategoriesBadge;
+  String get filterGeneralBadge;
+  String categoryProgressText(int current, int target);
+  String categoryTasksCount(int count);
+  String categoryMinutesCount(int minutes);
+  String categoryBadgeLevel(int level);
+
   // ── Calendarios del Dispositivo ──
   String get deviceCalendarSettingsTitle;
   String get deviceCalendarSettingsSubtitle;

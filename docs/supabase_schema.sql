@@ -158,3 +158,5 @@ CREATE POLICY "Los usuarios pueden actualizar su propia gamificacion"
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
+-- Migración opcional para estadísticas por categoría (Maestría y Recompensas por Categoría)
+ALTER TABLE public.user_gamification ADD COLUMN IF NOT EXISTS category_stats JSONB DEFAULT '{}'::jsonb;
