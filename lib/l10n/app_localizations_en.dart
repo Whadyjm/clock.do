@@ -494,5 +494,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deviceCalendarOpenSettings => 'Open Settings';
   @override
   String get deviceCalendarGoToSettings => 'Go to System Settings › Apps › Clock.Do › Permissions › Calendar';
+
+  // ── Tablero Kanban ──
+  @override
+  String get kanbanView => 'Kanban Board';
+  @override
+  String get clockView => 'Radial Clock';
+  @override
+  String get kanbanScopeDay => 'Selected day';
+  @override
+  String get kanbanScopeAll => 'All tasks';
+  @override
+  String get columnBacklog => 'Backlog';
+  @override
+  String get columnPending => 'To Do';
+  @override
+  String get columnInProgress => 'In Progress';
+  @override
+  String get columnCompleted => 'Completed';
+  @override
+  String get emptyColumnNoTasks => 'No tasks in this column';
+  @override
+  String get dragHereHint => 'Drop here to move';
+  @override
+  String get addToColumn => 'Add to this column';
+  @override
+  String get filterAllCategories => 'All';
+  @override
+  String get moveToPreviousStatus => 'Move to previous status';
+  @override
+  String get moveToNextStatus => 'Move to next status';
 }
 

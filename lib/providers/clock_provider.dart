@@ -11,6 +11,7 @@ import '../services/supabase_service.dart';
 import '../services/device_calendar_service.dart';
 import 'package:device_calendar/device_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../l10n/app_localizations.dart';
 
 const _kStorageKey = 'clockdo_tasks';
 const _kTodoStorageKey = 'clockdo_todos';
@@ -23,6 +24,23 @@ const _kGamificationStorageKey = 'clockdo_gamification';
 const _kDeviceCalSyncEnabledKey = 'clockdo_device_cal_sync_enabled';
 const _kSelectedDeviceCalIdsKey = 'clockdo_selected_device_cal_ids';
 const _kLastUserIdKey = 'clockdo_last_user_id';
+const _kViewModeStorageKey = 'clockdo_view_mode';
+
+/// Modos de visualización principal de la aplicación.
+enum AppViewMode {
+  clock,
+  kanban;
+
+  String getLocalizedName(BuildContext context) {
+    final l10n = context.l10n;
+    switch (this) {
+      case AppViewMode.clock:
+        return l10n.clockView;
+      case AppViewMode.kanban:
+        return l10n.kanbanView;
+    }
+  }
+}
 
 /// Estado global de la aplicación ClockDo con soporte de recordatorios globales, temas, calendario, tareas ToDo y sincronización Supabase.
 class ClockProvider extends ChangeNotifier {
@@ -34,9 +52,12 @@ class ClockProvider extends ChangeNotifier {
   Locale? _locale; // null = seguir sistema
   DateTime _now = DateTime.now();
   DateTime _selectedDate = normalizeDate(DateTime.now());
+  AppViewMode _viewMode = AppViewMode.clock;
   Timer? _clockTimer;
   StreamSubscription? _authSub;
   String? _lastUserId;
+
+  AppViewMode get viewMode => _viewMode;
 
   // ──────────────────────────────────────────────
   // Configuración de Supabase / Cloud Sync
@@ -657,6 +678,82 @@ class ClockProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Establece el estado de una tarea directamente (útil para mover entre columnas Kanban).
+  void setBlockStatus(String id, TaskStatus newStatus) {
+    final idx = _blocks.indexWhere((b) => b.id == id);
+    if (idx == -1) return;
+    final block = _blocks[idx];
+    if (block.status == newStatus) return;
+
+    final updated = block.copyWith(status: newStatus);
+    _blocks[idx] = updated;
+    _saveToStorage();
+    _supabase.upsertTimeBlock(updated);
+
+    if (newStatus == TaskStatus.completed) {
+      _notifService.cancelTaskReminder(id);
+      _onTaskCompleted(updated);
+    } else {
+      _scheduleBlockNotification(updated);
+    }
+    notifyListeners();
+  }
+
+  /// Convierte un ítem ToDo en un TimeBlock con un estado inicial específico (ej. al soltarlo en una columna Kanban).
+  void convertTodoToScheduledBlock({
+    required String todoId,
+    required TaskStatus initialStatus,
+    DateTime? date,
+    double? startHour,
+    double? endHour,
+  }) {
+    final idx = _todoItems.indexWhere((t) => t.id == todoId);
+    if (idx == -1) return;
+    final todo = _todoItems.removeAt(idx);
+    _saveTodosToStorage();
+    _supabase.deleteTodo(todoId);
+
+    final targetDate = date ?? _selectedDate;
+    final double defaultStart = startHour ?? (_now.hour + (_now.minute / 60.0)).clamp(0.0, 23.5);
+    final double? defaultEnd = endHour ?? (defaultStart <= 22.5 ? defaultStart + 1.0 : null);
+
+    final block = TimeBlock(
+      id: todo.id,
+      title: todo.title,
+      description: todo.description,
+      date: targetDate,
+      startHour: defaultStart,
+      endHour: defaultEnd,
+      category: todo.category,
+      status: initialStatus,
+    );
+    addBlock(block);
+  }
+
+  /// Desasigna un bloque de tiempo de la agenda y lo devuelve al Backlog de ToDos.
+  void moveBlockToBacklog(String blockId) {
+    final idx = _blocks.indexWhere((b) => b.id == blockId);
+    if (idx == -1) return;
+    final block = _blocks.removeAt(idx);
+    _recalculateAllRings();
+    _saveToStorage();
+    _supabase.deleteTimeBlock(blockId);
+    _notifService.cancelTaskReminder(blockId);
+
+    final todo = TodoItem(
+      id: block.id,
+      title: block.title,
+      description: block.description,
+      category: block.category,
+      isCompleted: block.status == TaskStatus.completed,
+      createdAt: DateTime.now(),
+    );
+    _todoItems.insert(0, todo);
+    _saveTodosToStorage();
+    _supabase.upsertTodo(todo);
+    notifyListeners();
+  }
+
   // ──────────────────────────────────────────────
   // CRUD de Tareas ToDo (Backlog)
   // ──────────────────────────────────────────────
@@ -787,6 +884,30 @@ class ClockProvider extends ChangeNotifier {
   void toggleClockMode() {
     _is24h = !_is24h;
     notifyListeners();
+  }
+
+  // ──────────────────────────────────────────────
+  // Modo de Vista (Reloj / Kanban)
+  // ──────────────────────────────────────────────
+
+  void setViewMode(AppViewMode mode) {
+    if (_viewMode == mode) return;
+    _viewMode = mode;
+    _saveViewModeToStorage();
+    notifyListeners();
+  }
+
+  void toggleViewMode() {
+    _viewMode = _viewMode == AppViewMode.clock
+        ? AppViewMode.kanban
+        : AppViewMode.clock;
+    _saveViewModeToStorage();
+    notifyListeners();
+  }
+
+  Future<void> _saveViewModeToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kViewModeStorageKey, _viewMode.name);
   }
 
   // ──────────────────────────────────────────────
@@ -1003,6 +1124,16 @@ class ClockProvider extends ChangeNotifier {
     // Cargar último ID de usuario autenticado
     if (prefs.containsKey(_kLastUserIdKey)) {
       _lastUserId = prefs.getString(_kLastUserIdKey);
+    }
+
+    // Cargar Modo de Vista (Reloj / Kanban)
+    if (prefs.containsKey(_kViewModeStorageKey)) {
+      final savedMode = prefs.getString(_kViewModeStorageKey);
+      if (savedMode == AppViewMode.kanban.name) {
+        _viewMode = AppViewMode.kanban;
+      } else {
+        _viewMode = AppViewMode.clock;
+      }
     }
 
     // Cargar Recordatorios Globales

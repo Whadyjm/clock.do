@@ -494,5 +494,35 @@ class AppLocalizationsEs extends AppLocalizations {
   String get deviceCalendarOpenSettings => 'Abrir Ajustes';
   @override
   String get deviceCalendarGoToSettings => 'Ve a Ajustes del sistema › Aplicaciones › Clock.Do › Permisos › Calendario';
+
+  // ── Tablero Kanban ──
+  @override
+  String get kanbanView => 'Tablero Kanban';
+  @override
+  String get clockView => 'Reloj Radial';
+  @override
+  String get kanbanScopeDay => 'Día seleccionado';
+  @override
+  String get kanbanScopeAll => 'Todas las tareas';
+  @override
+  String get columnBacklog => 'Backlog';
+  @override
+  String get columnPending => 'Por hacer';
+  @override
+  String get columnInProgress => 'En progreso';
+  @override
+  String get columnCompleted => 'Completadas';
+  @override
+  String get emptyColumnNoTasks => 'Sin tareas en esta columna';
+  @override
+  String get dragHereHint => 'Arrastra aquí para mover';
+  @override
+  String get addToColumn => 'Añadir a esta columna';
+  @override
+  String get filterAllCategories => 'Todas';
+  @override
+  String get moveToPreviousStatus => 'Mover a estado anterior';
+  @override
+  String get moveToNextStatus => 'Mover a siguiente estado';
 }
 

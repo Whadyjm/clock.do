@@ -18,6 +18,7 @@ import '../widgets/auth/auth_sheet.dart';
 import '../widgets/settings/app_settings_sheet.dart';
 import '../widgets/gamification/gamification_sheet.dart';
 import '../widgets/gamification/achievement_unlocked_dialog.dart';
+import '../widgets/kanban/kanban_board_view.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/radial_math.dart';
 
@@ -92,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen>
     String? initialTitle,
     String? initialDescription,
     TaskCategory? initialCategory,
+    TaskStatus? initialStatus,
   }) {
     if (!mounted) return;
     HapticFeedback.mediumImpact();
@@ -109,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen>
           initialTitle: initialTitle,
           initialDescription: initialDescription,
           initialCategory: initialCategory,
+          initialStatus: initialStatus,
         ),
       ),
     );
@@ -235,6 +238,9 @@ class _HomeScreenState extends State<HomeScreen>
       }
     });
 
+    final provider = context.watch<ClockProvider>();
+    final isKanban = provider.viewMode == AppViewMode.kanban;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -250,34 +256,53 @@ class _HomeScreenState extends State<HomeScreen>
                     child: _buildHeader(context),
                   ),
                 ),
+                // ── Selector de Modo (Reloj / Kanban) ───────────────
+                _buildModeSwitcher(context),
                 // ── Tira semanal ───────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                   child: const WeeklyDateStrip(),
                 ),
-                // ── Reloj colapsable (FUERA del scroll) ────────────
-                AnimatedBuilder(
-                  animation: _taskScrollCtrl,
-                  builder: (ctx, _) {
-                    final offset = _taskScrollCtrl.hasClients
-                        ? _taskScrollCtrl.offset.clamp(0.0, clockMaxH)
-                        : 0.0;
-                    final clockH = (clockMaxH - offset).clamp(0.0, clockMaxH);
-                    final shrinkRatio = offset / clockMaxH;
-                    return SizedBox(
-                      height: clockH,
-                      child: _buildClockWidget(ctx, shrinkRatio),
-                    );
-                  },
-                ),
-                // ── Lista de tareas (scroll propio) ────────────────
-                Expanded(
-                  child: CustomScrollView(
-                    controller: _taskScrollCtrl,
-                    physics: const BouncingScrollPhysics(),
-                    slivers: _buildTaskSlivers(context),
+                // ── Vista Condicional: Kanban vs Reloj Radial ────────
+                if (isKanban)
+                  Expanded(
+                    child: KanbanBoardView(
+                      onOpenCreateSheet: ({initialStatus, date}) {
+                        _openCreateSheet(
+                          context,
+                          date: date,
+                          initialStatus: initialStatus,
+                        );
+                      },
+                      onEditBlock: (block) => _openEditSheet(context, block.id),
+                      onEditTodo: (todo) => _openTodoListSheet(context),
+                    ),
+                  )
+                else ...[
+                  // ── Reloj colapsable (FUERA del scroll) ────────────
+                  AnimatedBuilder(
+                    animation: _taskScrollCtrl,
+                    builder: (ctx, _) {
+                      final offset = _taskScrollCtrl.hasClients
+                          ? _taskScrollCtrl.offset.clamp(0.0, clockMaxH)
+                          : 0.0;
+                      final clockH = (clockMaxH - offset).clamp(0.0, clockMaxH);
+                      final shrinkRatio = offset / clockMaxH;
+                      return SizedBox(
+                        height: clockH,
+                        child: _buildClockWidget(ctx, shrinkRatio),
+                      );
+                    },
                   ),
-                ),
+                  // ── Lista de tareas (scroll propio) ────────────────
+                  Expanded(
+                    child: CustomScrollView(
+                      controller: _taskScrollCtrl,
+                      physics: const BouncingScrollPhysics(),
+                      slivers: _buildTaskSlivers(context),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -484,37 +509,158 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               const SizedBox(width: 4),
 
-              // Toggle 12h/24h
-              GestureDetector(
+              // Botón de Toggle Modo Reloj / Kanban
+              _buildHeaderIconButton(
+                buttonBg: provider.viewMode == AppViewMode.kanban
+                    ? const Color(0xFF6C5CE7)
+                    : buttonBg,
+                tooltip: provider.viewMode == AppViewMode.kanban
+                    ? l10n.clockView
+                    : l10n.kanbanView,
+                icon: provider.viewMode == AppViewMode.kanban
+                    ? Icons.access_time_filled_rounded
+                    : Icons.view_kanban_rounded,
+                iconColor: provider.viewMode == AppViewMode.kanban
+                    ? Colors.white
+                    : const Color(0xFF6C5CE7),
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  provider.toggleClockMode();
+                  provider.toggleViewMode();
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: provider.is24h
-                        ? const Color(0xFF6C5CE7)
-                        : buttonBg,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    provider.is24h ? '24H' : '12H',
-                    style: TextStyle(
+              ),
+              const SizedBox(width: 4),
+
+              // Toggle 12h/24h (relevante para vista reloj)
+              if (provider.viewMode == AppViewMode.clock)
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    provider.toggleClockMode();
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+                    decoration: BoxDecoration(
                       color: provider.is24h
-                          ? Colors.white
-                          : const Color(0xFF6C5CE7),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
+                          ? const Color(0xFF6C5CE7)
+                          : buttonBg,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      provider.is24h ? '24H' : '12H',
+                      style: TextStyle(
+                        color: provider.is24h
+                            ? Colors.white
+                            : const Color(0xFF6C5CE7),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Selector de Modo (Reloj / Kanban)
+  // ──────────────────────────────────────────────
+
+  Widget _buildModeSwitcher(BuildContext context) {
+    final provider = context.watch<ClockProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isKanban = provider.viewMode == AppViewMode.kanban;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161828) : const Color(0xFFEEEAF8),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildModeTab(
+              context,
+              title: context.l10n.clockView,
+              icon: Icons.access_time_filled_rounded,
+              isSelected: !isKanban,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                provider.setViewMode(AppViewMode.clock);
+              },
+            ),
+          ),
+          Expanded(
+            child: _buildModeTab(
+              context,
+              title: context.l10n.kanbanView,
+              icon: Icons.view_kanban_rounded,
+              isSelected: isKanban,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                provider.setViewMode(AppViewMode.kanban);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeTab(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF6C5CE7) : const Color(0xFF6C5CE7))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.white : const Color(0xFF9E98D4),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF9E98D4),
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

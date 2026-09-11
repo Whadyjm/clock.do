@@ -297,6 +297,22 @@ abstract class AppLocalizations {
   String get deviceCalendarOpenSettingsHint;
   String get deviceCalendarOpenSettings;
   String get deviceCalendarGoToSettings;
+
+  // ── Tablero Kanban ──
+  String get kanbanView;
+  String get clockView;
+  String get kanbanScopeDay;
+  String get kanbanScopeAll;
+  String get columnBacklog;
+  String get columnPending;
+  String get columnInProgress;
+  String get columnCompleted;
+  String get emptyColumnNoTasks;
+  String get dragHereHint;
+  String get addToColumn;
+  String get filterAllCategories;
+  String get moveToPreviousStatus;
+  String get moveToNextStatus;
 }
 
 class _AppLocalizationsDelegate

@@ -18,6 +18,7 @@ class TaskFormSheet extends StatefulWidget {
   final String? initialTitle;
   final String? initialDescription;
   final TaskCategory? initialCategory;
+  final TaskStatus? initialStatus;
 
   const TaskFormSheet({
     super.key,
@@ -28,6 +29,7 @@ class TaskFormSheet extends StatefulWidget {
     this.initialTitle,
     this.initialDescription,
     this.initialCategory,
+    this.initialStatus,
   });
 
   @override
@@ -104,6 +106,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         startHour: _startHour,
         endHour: _isPointInTime ? null : _endHour,
         category: _selectedCategory,
+        status: widget.initialStatus ?? TaskStatus.pending,
         notificationEnabled: _notificationEnabled,
         reminderMinutes: _reminderMinutes,
       ));
