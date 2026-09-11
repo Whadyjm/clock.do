@@ -54,6 +54,18 @@ abstract class AppLocalizations {
   String get priorityHigh;
   String get priorityUrgent;
 
+  // ── Recurrencia y Recordatorios Periódicos ──
+  String get recurrenceLabel;
+  String get recurrenceNone;
+  String get recurrenceDaily;
+  String get recurrenceWeekdays;
+  String get recurrenceWeekly;
+  String get recurrenceCustom;
+  String get intervalReminderLabel;
+  String get intervalReminderSubtitle;
+  String everyXMinutes(int mins);
+  String everyXHours(int hours);
+
   // ── Header y Barra Superior ──
   String get cloudSyncTooltip;
   String accountTooltip(String email);

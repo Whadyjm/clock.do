@@ -14,7 +14,12 @@ CREATE TABLE IF NOT EXISTS public.time_blocks (
     date DATE NOT NULL,
     category INTEGER NOT NULL DEFAULT 0,
     status INTEGER NOT NULL DEFAULT 0,
+    priority INTEGER NOT NULL DEFAULT 0,
+    recurrence JSONB,
     is_full_day BOOLEAN NOT NULL DEFAULT FALSE,
+    notification_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    reminder_minutes INTEGER,
+    category_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -30,6 +35,8 @@ CREATE TABLE IF NOT EXISTS public.todos (
     title TEXT NOT NULL,
     description TEXT,
     category INTEGER NOT NULL DEFAULT 0,
+    priority INTEGER NOT NULL DEFAULT 0,
+    category_id TEXT,
     is_completed BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     completed_at TIMESTAMPTZ,
@@ -115,48 +122,13 @@ CREATE POLICY "Los usuarios pueden eliminar sus propias categorias"
     USING (auth.uid() = user_id);
 
 -- ==============================================================================
--- Migraciones opcionales para time_blocks y todos:
+-- Migraciones para tablas existentes:
 -- ==============================================================================
--- 1. Notificaciones personalizadas por bloque
 ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER;
-
--- 2. Referencia a categoría por ID (soporta categorías personalizadas)
 ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS category_id TEXT;
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS recurrence JSONB;
+
 ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS category_id TEXT;
-
--- ==============================================================================
--- 7. Tabla de Gamificación y Maestría del Tiempo (Clock.Do Mastery)
--- ==============================================================================
-CREATE TABLE IF NOT EXISTS public.user_gamification (
-    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    ticks INTEGER NOT NULL DEFAULT 0,
-    level INTEGER NOT NULL DEFAULT 1,
-    current_streak INTEGER NOT NULL DEFAULT 0,
-    best_streak INTEGER NOT NULL DEFAULT 0,
-    last_active_date DATE,
-    streak_freeze_count INTEGER NOT NULL DEFAULT 1,
-    total_completed_tasks INTEGER NOT NULL DEFAULT 0,
-    total_focus_minutes INTEGER NOT NULL DEFAULT 0,
-    unlocked_achievements JSONB NOT NULL DEFAULT '[]'::jsonb,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);
-
-ALTER TABLE public.user_gamification ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Los usuarios pueden ver su propia gamificacion"
-    ON public.user_gamification FOR SELECT
-    USING (auth.uid() = user_id);
-
-CREATE POLICY "Los usuarios pueden insertar su propia gamificacion"
-    ON public.user_gamification FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Los usuarios pueden actualizar su propia gamificacion"
-    ON public.user_gamification FOR UPDATE
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
-
--- Migración opcional para estadísticas por categoría (Maestría y Recompensas por Categoría)
-ALTER TABLE public.user_gamification ADD COLUMN IF NOT EXISTS category_stats JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 0;

@@ -261,9 +261,101 @@ class NotificationService {
     if (!_isInitialized) await init();
     try {
       await _plugin.cancel(_notificationId(blockId));
+      await cancelIntervalReminders(blockId);
     } catch (e) {
       debugPrint('[ClockDo Notif] ERROR cancelling notification for $blockId: $e');
     }
+  }
+
+  /// Programa recordatorios periódicos por intervalo para un bloque de tiempo
+  Future<void> scheduleIntervalReminders({
+    required TimeBlock block,
+    required bool enabled,
+  }) async {
+    if (!enabled || !block.hasIntervalReminder || block.recurrence?.reminderIntervalMinutes == null) {
+      await cancelIntervalReminders(block.id);
+      return;
+    }
+    if (!_isInitialized) await init();
+
+    await cancelIntervalReminders(block.id);
+
+    if (block.status == TaskStatus.completed) return;
+
+    final reminderHours = block.recurrence!.calculateReminderHours(
+      startHour: block.startHour,
+      endHour: block.endHour,
+    );
+    if (reminderHours.isEmpty) return;
+
+    final now = DateTime.now();
+
+    const androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDesc,
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    );
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const details = NotificationDetails(android: androidDetails, iOS: darwinDetails);
+
+    for (int i = 0; i < reminderHours.length; i++) {
+      final hourDecimal = reminderHours[i];
+      final h = hourDecimal.floor() % 24;
+      final m = ((hourDecimal - hourDecimal.floor()) * 60).round();
+
+      final reminderTime = DateTime(
+        block.date.year,
+        block.date.month,
+        block.date.day,
+        h,
+        m,
+      );
+
+      if (reminderTime.isBefore(now)) continue;
+
+      final id = _intervalNotificationId(block.id, i);
+      final timeFormatted = RadialMath.decimalHoursToString(hourDecimal);
+
+      try {
+        final scheduledTz = tz.TZDateTime.from(reminderTime, tz.local);
+        await _plugin.zonedSchedule(
+          id,
+          '🔁 ${block.title}',
+          '${block.category.displayName} • Recordatorio ($timeFormatted)',
+          scheduledTz,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+        debugPrint('[ClockDo Notif] ✅ Scheduled interval reminder #$id at $scheduledTz');
+      } catch (e) {
+        debugPrint('[ClockDo Notif] Error scheduling interval reminder #$id: $e');
+      }
+    }
+  }
+
+  /// Cancela los recordatorios de intervalo de una tarea específica
+  Future<void> cancelIntervalReminders(String blockId) async {
+    if (!_isInitialized) await init();
+    try {
+      for (int i = 0; i < 48; i++) {
+        await _plugin.cancel(_intervalNotificationId(blockId, i));
+      }
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR cancelling interval notifications for $blockId: $e');
+    }
+  }
+
+  int _intervalNotificationId(String blockId, int index) {
+    return (blockId.hashCode ^ ((index + 1) * 7919)).abs() % 2147483647;
   }
 
   /// Cancela todas las notificaciones programadas

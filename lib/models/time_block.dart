@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'task_category.dart';
 import 'task_priority.dart';
+import 'recurrence_rule.dart';
 import '../l10n/app_localizations.dart';
 
 /// Estado de una tarea en el sistema.
@@ -57,6 +58,9 @@ class TimeBlock {
   final TaskStatus status;
   final TaskPriority priority;
 
+  /// Regla de recurrencia y recordatorio periódico por intervalo
+  final RecurrenceRule? recurrence;
+
   /// Índice del anillo concéntrico asignado por la lógica de solapamientos.
   /// 0 = anillo exterior, 1 = siguiente hacia adentro, etc.
   final int ringIndex;
@@ -80,6 +84,12 @@ class TimeBlock {
   /// Indica si es una tarea puntual en una hora específica sin hora/fecha fin.
   bool get isPointInTime => endHour == null;
 
+  /// Indica si la tarea se repite periódicamente
+  bool get isRecurring => recurrence != null && recurrence!.isRepeating;
+
+  /// Indica si la tarea tiene un recordatorio que avisa cada cierto intervalo de tiempo
+  bool get hasIntervalReminder => recurrence != null && recurrence!.hasIntervalReminder;
+
   TimeBlock({
     required this.id,
     required this.title,
@@ -90,6 +100,7 @@ class TimeBlock {
     this.category = TaskCategory.none,
     this.status = TaskStatus.pending,
     this.priority = TaskPriority.none,
+    this.recurrence,
     this.ringIndex = 0,
     this.notificationEnabled = true,
     this.reminderMinutes,
@@ -108,6 +119,7 @@ class TimeBlock {
     TaskCategory category = TaskCategory.none,
     TaskStatus status = TaskStatus.pending,
     TaskPriority priority = TaskPriority.none,
+    RecurrenceRule? recurrence,
     bool notificationEnabled = true,
     int? reminderMinutes,
     bool isExternalCalendar = false,
@@ -124,6 +136,7 @@ class TimeBlock {
       category: category,
       status: status,
       priority: priority,
+      recurrence: recurrence,
       ringIndex: 0,
       notificationEnabled: notificationEnabled,
       reminderMinutes: reminderMinutes,
@@ -141,6 +154,14 @@ class TimeBlock {
     return date.year == otherDate.year &&
         date.month == otherDate.month &&
         date.day == otherDate.day;
+  }
+
+  /// Determina si esta tarea ocurre o debe proyectarse en la fecha dada (considerando recurrencia).
+  bool occursOnDate(DateTime targetDate) {
+    if (isRecurring) {
+      return recurrence!.occursOnDate(date, targetDate);
+    }
+    return isOnDay(targetDate);
   }
 
   /// Devuelve true si esta tarea se solapa con [other] (ambas en el mismo día).
@@ -177,6 +198,8 @@ class TimeBlock {
     TaskCategory? category,
     TaskStatus? status,
     TaskPriority? priority,
+    RecurrenceRule? recurrence,
+    bool clearRecurrence = false,
     int? ringIndex,
     bool? notificationEnabled,
     int? reminderMinutes,
@@ -195,6 +218,7 @@ class TimeBlock {
       category: category ?? this.category,
       status: status ?? this.status,
       priority: priority ?? this.priority,
+      recurrence: clearRecurrence ? null : (recurrence ?? this.recurrence),
       ringIndex: ringIndex ?? this.ringIndex,
       notificationEnabled: notificationEnabled ?? this.notificationEnabled,
       reminderMinutes: clearReminderMinutes
@@ -218,6 +242,7 @@ class TimeBlock {
         'categoryId': category.id,
         'status': status.index,
         'priority': priority.index,
+        'recurrence': recurrence?.toJson(),
         'ringIndex': ringIndex,
         'notificationEnabled': notificationEnabled,
         'reminderMinutes': reminderMinutes,
@@ -233,13 +258,17 @@ class TimeBlock {
         'description': description,
         'date': date.toIso8601String().split('T').first,
         'start_hour': startHour,
-        'end_hour': endHour ?? startHour,
+        'end_hour': endHour,
         'category': category.index,
         'category_id': category.id,
         'status': status.index,
         'priority': priority.index,
+        'recurrence': recurrence?.toJson(),
         'notification_enabled': notificationEnabled,
         'reminder_minutes': reminderMinutes,
+        'is_external_calendar': isExternalCalendar,
+        'external_event_id': externalEventId,
+        'external_calendar_name': externalCalendarName,
       };
 
   /// Deserializa desde JSON.
@@ -263,6 +292,9 @@ class TimeBlock {
       ),
       status: TaskStatus.values[json['status'] as int],
       priority: TaskPriority.fromIndex(json['priority'] as int?),
+      recurrence: json['recurrence'] != null
+          ? RecurrenceRule.fromJson(Map<String, dynamic>.from(json['recurrence'] as Map))
+          : null,
       ringIndex: json['ringIndex'] as int? ?? 0,
       notificationEnabled: json['notificationEnabled'] as bool? ?? true,
       reminderMinutes: json['reminderMinutes'] as int?,
@@ -294,6 +326,9 @@ class TimeBlock {
       status: TaskStatus.values[
           (map['status'] as int? ?? 0).clamp(0, TaskStatus.values.length - 1)],
       priority: TaskPriority.fromIndex(map['priority'] as int?),
+      recurrence: map['recurrence'] != null
+          ? RecurrenceRule.fromJson(Map<String, dynamic>.from(map['recurrence'] as Map))
+          : null,
       ringIndex: 0,
       notificationEnabled: map['notification_enabled'] as bool? ?? true,
       reminderMinutes: map['reminder_minutes'] as int?,
@@ -305,5 +340,5 @@ class TimeBlock {
 
   @override
   String toString() =>
-      'TimeBlock($title, ${date.toIso8601String().split('T').first}, ${isPointInTime ? '@$startHour' : '$startHour–$endHour'}, ${category.displayName}, ${status.displayName}, ${priority.displayName})';
+      'TimeBlock($title, ${date.toIso8601String().split('T').first}, ${isPointInTime ? '@$startHour' : '$startHour–$endHour'}, ${category.displayName}, ${status.displayName}, ${priority.displayName}, recurring: $isRecurring)';
 }

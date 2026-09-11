@@ -195,6 +195,57 @@ class KanbanCard extends StatelessWidget {
                       ),
                     ],
 
+                    if (isBlock && block!.isRecurring) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00CEC9).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: const Color(0xFF00CEC9).withValues(alpha: 0.35),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.repeat_rounded, size: 10, color: Color(0xFF00CEC9)),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    if (isBlock && block!.hasIntervalReminder) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C5CE7).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.35),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.timer_outlined, size: 10, color: Color(0xFF6C5CE7)),
+                            const SizedBox(width: 2.5),
+                            Text(
+                              block!.recurrence!.formatIntervalDescription(context),
+                              style: const TextStyle(
+                                color: Color(0xFF6C5CE7),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const Spacer(),
 
                     // Si es TimeBlock y está en progreso, tag animado

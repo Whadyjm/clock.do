@@ -1059,6 +1059,68 @@ class _HomeScreenState extends State<HomeScreen>
                             ],
                           ),
                         ),
+                      if (block.isRecurring)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00CEC9).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFF00CEC9).withValues(alpha: 0.35),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.repeat_rounded,
+                                size: 9,
+                                color: Color(0xFF00CEC9),
+                              ),
+                              const SizedBox(width: 2.5),
+                              Text(
+                                block.recurrence!.frequency.getLocalizedName(context),
+                                style: const TextStyle(
+                                  color: Color(0xFF00CEC9),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (block.hasIntervalReminder)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFF6C5CE7).withValues(alpha: 0.35),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.timer_outlined,
+                                size: 9,
+                                color: Color(0xFF6C5CE7),
+                              ),
+                              const SizedBox(width: 2.5),
+                              Text(
+                                block.recurrence!.formatIntervalDescription(context),
+                                style: const TextStyle(
+                                  color: Color(0xFF6C5CE7),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       if (block.isExternalCalendar)
                         Container(
                           constraints: const BoxConstraints(maxWidth: 110),

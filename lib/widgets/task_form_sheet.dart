@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
 import '../models/task_priority.dart';
+import '../models/recurrence_rule.dart';
 import '../providers/clock_provider.dart';
 import '../utils/radial_math.dart';
 import '../l10n/app_localizations.dart';
@@ -50,8 +51,21 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   late bool _isPointInTime;
   late bool _notificationEnabled;
   late int? _reminderMinutes; // null = usar ajuste global predeterminado
+  late RecurrenceFrequency _selectedFrequency;
+  late int? _intervalReminderMinutes; // null = sin intervalo periódico
 
   bool get _isEditing => widget.existingBlock != null;
+
+  RecurrenceRule? get _currentRecurrence {
+    if (_selectedFrequency == RecurrenceFrequency.none && _intervalReminderMinutes == null) {
+      return null;
+    }
+    return RecurrenceRule(
+      frequency: _selectedFrequency,
+      reminderIntervalMinutes: _intervalReminderMinutes,
+      endDate: null,
+    );
+  }
 
   @override
   void initState() {
@@ -71,6 +85,8 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         ((_startHour + 1.0) % 24);
     _notificationEnabled = block?.notificationEnabled ?? true;
     _reminderMinutes = block?.reminderMinutes;
+    _selectedFrequency = block?.recurrence?.frequency ?? RecurrenceFrequency.none;
+    _intervalReminderMinutes = block?.recurrence?.reminderIntervalMinutes;
   }
 
   @override
@@ -100,6 +116,8 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         clearEndHour: _isPointInTime,
         category: _selectedCategory,
         priority: _selectedPriority,
+        recurrence: _currentRecurrence,
+        clearRecurrence: _currentRecurrence == null,
         notificationEnabled: _notificationEnabled,
         reminderMinutes: _reminderMinutes,
         clearReminderMinutes: _reminderMinutes == null,
@@ -114,6 +132,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         category: _selectedCategory,
         status: widget.initialStatus ?? TaskStatus.pending,
         priority: _selectedPriority,
+        recurrence: _currentRecurrence,
         notificationEnabled: _notificationEnabled,
         reminderMinutes: _reminderMinutes,
       ));
@@ -393,6 +412,10 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
             ),
             const SizedBox(height: 12),
             _buildPrioritySelector(isDark),
+            const SizedBox(height: 22),
+
+            // Recurrencia y Recordatorios Periódicos
+            _buildRecurrenceSection(context, isDark, fieldFillColor, borderColor, textColor),
             const SizedBox(height: 22),
 
             // Configuración de Notificación / Recordatorio
@@ -1328,5 +1351,230 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         _reminderMinutes = result;
       });
     }
+  }
+
+  Widget _buildRecurrenceSection(
+    BuildContext context,
+    bool isDark,
+    Color fieldFillColor,
+    Color borderColor,
+    Color textColor,
+  ) {
+    final l10n = context.l10n;
+    final hasRecurrence = _selectedFrequency != RecurrenceFrequency.none;
+    final hasInterval = _intervalReminderMinutes != null && _intervalReminderMinutes! > 0;
+    final isActive = hasRecurrence || hasInterval;
+
+    String subtitle;
+    if (!isActive) {
+      subtitle = l10n.recurrenceNone;
+    } else {
+      final parts = <String>[];
+      if (hasRecurrence) {
+        parts.add(_selectedFrequency.getLocalizedName(context));
+      }
+      if (hasInterval) {
+        final mins = _intervalReminderMinutes!;
+        if (mins >= 60 && mins % 60 == 0) {
+          parts.add(l10n.everyXHours(mins ~/ 60));
+        } else {
+          parts.add(l10n.everyXMinutes(mins));
+        }
+      }
+      subtitle = parts.join(' • ');
+    }
+
+    final intervalOptions = [null, 15, 30, 45, 60, 120];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: fieldFillColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isActive
+              ? _selectedCategory.color.withValues(alpha: 0.35)
+              : borderColor,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isActive
+                          ? _selectedCategory.color
+                          : const Color(0xFF9E98D4))
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.repeat_rounded,
+                  color: isActive
+                      ? _selectedCategory.color
+                      : const Color(0xFF9E98D4),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.recurrenceLabel.toUpperCase(),
+                      style: TextStyle(
+                        color: isActive
+                            ? _selectedCategory.color
+                            : const Color(0xFF9E98D4),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: isActive ? textColor : textColor.withValues(alpha: 0.6),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Chips de frecuencia de repetición
+          Text(
+            l10n.recurrenceLabel.toUpperCase(),
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.6),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: RecurrenceFrequency.values.map((freq) {
+                final isSelected = freq == _selectedFrequency;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(freq.getLocalizedName(context)),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _selectedFrequency = freq;
+                      });
+                    },
+                    selectedColor: _selectedCategory.color.withValues(alpha: isDark ? 0.35 : 0.2),
+                    backgroundColor: isDark ? const Color(0xFF262040) : const Color(0xFFF1F0F9),
+                    side: BorderSide(
+                      color: isSelected
+                          ? _selectedCategory.color
+                          : borderColor,
+                      width: 1.2,
+                    ),
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? (isDark ? Colors.white : _selectedCategory.color)
+                          : textColor.withValues(alpha: 0.7),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Chips de Recordatorio por intervalo periódico
+          Text(
+            l10n.intervalReminderLabel.toUpperCase(),
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.6),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.intervalReminderSubtitle,
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.5),
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: intervalOptions.map((mins) {
+                final isSelected = _intervalReminderMinutes == mins;
+                String label;
+                if (mins == null) {
+                  label = l10n.recurrenceNone;
+                } else if (mins >= 60 && mins % 60 == 0) {
+                  label = l10n.everyXHours(mins ~/ 60);
+                } else {
+                  label = l10n.everyXMinutes(mins);
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _intervalReminderMinutes = mins;
+                      });
+                    },
+                    selectedColor: _selectedCategory.color.withValues(alpha: isDark ? 0.35 : 0.2),
+                    backgroundColor: isDark ? const Color(0xFF262040) : const Color(0xFFF1F0F9),
+                    side: BorderSide(
+                      color: isSelected
+                          ? _selectedCategory.color
+                          : borderColor,
+                      width: 1.2,
+                    ),
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? (isDark ? Colors.white : _selectedCategory.color)
+                          : textColor.withValues(alpha: 0.7),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

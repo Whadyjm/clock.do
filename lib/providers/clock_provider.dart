@@ -104,7 +104,12 @@ class ClockProvider extends ChangeNotifier {
 
   /// Bloques correspondientes al día seleccionado con anillos calculados.
   List<TimeBlock> get selectedDateBlocks {
-    final dayBlocks = _blocks.where((b) => b.isOnDay(_selectedDate)).toList();
+    final dayBlocks = _blocks.where((b) => b.occursOnDate(_selectedDate)).map((b) {
+      if (b.isRecurring && !b.isOnDay(_selectedDate)) {
+        return b.copyWith(date: _selectedDate);
+      }
+      return b;
+    }).toList();
     _calculateRingsForList(dayBlocks);
     return dayBlocks;
   }
@@ -322,6 +327,7 @@ class ClockProvider extends ChangeNotifier {
   void _scheduleBlockNotification(TimeBlock block) {
     if (!_notificationsEnabled || !block.notificationEnabled) {
       _notifService.cancelTaskReminder(block.id);
+      _notifService.cancelIntervalReminders(block.id);
       return;
     }
     _notifService.scheduleTaskReminder(
@@ -329,6 +335,14 @@ class ClockProvider extends ChangeNotifier {
       minutesBefore: effectiveReminderMinutes(block),
       enabled: true,
     );
+    if (block.hasIntervalReminder) {
+      _notifService.scheduleIntervalReminders(
+        block: block,
+        enabled: true,
+      );
+    } else {
+      _notifService.cancelIntervalReminders(block.id);
+    }
   }
 
   void _rescheduleAllNotifications() {

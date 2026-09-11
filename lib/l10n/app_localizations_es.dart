@@ -47,6 +47,27 @@ class AppLocalizationsEs extends AppLocalizations {
   String get priorityUrgent => 'Urgente';
 
   @override
+  String get recurrenceLabel => 'Frecuencia / Repetición';
+  @override
+  String get recurrenceNone => 'No se repite';
+  @override
+  String get recurrenceDaily => 'Todos los días';
+  @override
+  String get recurrenceWeekdays => 'Días laborables (Lun - Vie)';
+  @override
+  String get recurrenceWeekly => 'Semanalmente';
+  @override
+  String get recurrenceCustom => 'Personalizado';
+  @override
+  String get intervalReminderLabel => 'Recordatorio periódico';
+  @override
+  String get intervalReminderSubtitle => 'Avisarme cada cierto tiempo';
+  @override
+  String everyXMinutes(int mins) => 'Cada $mins min';
+  @override
+  String everyXHours(int hours) => 'Cada $hours h';
+
+  @override
   String get cloudSyncTooltip => 'Iniciar Sesión / Nube';
   @override
   String accountTooltip(String email) => 'Cuenta: $email';
