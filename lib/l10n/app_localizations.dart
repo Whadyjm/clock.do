@@ -46,6 +46,14 @@ abstract class AppLocalizations {
   String get statusInProgress;
   String get statusCompleted;
 
+  // ── Prioridades de Tarea ──
+  String get priorityLabel;
+  String get priorityNone;
+  String get priorityLow;
+  String get priorityMedium;
+  String get priorityHigh;
+  String get priorityUrgent;
+
   // ── Header y Barra Superior ──
   String get cloudSyncTooltip;
   String accountTooltip(String email);

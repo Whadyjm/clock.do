@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
+import '../models/task_priority.dart';
 import '../providers/clock_provider.dart';
 import '../utils/radial_math.dart';
 import '../l10n/app_localizations.dart';
@@ -19,6 +20,7 @@ class TaskFormSheet extends StatefulWidget {
   final String? initialDescription;
   final TaskCategory? initialCategory;
   final TaskStatus? initialStatus;
+  final TaskPriority? initialPriority;
 
   const TaskFormSheet({
     super.key,
@@ -30,6 +32,7 @@ class TaskFormSheet extends StatefulWidget {
     this.initialDescription,
     this.initialCategory,
     this.initialStatus,
+    this.initialPriority,
   });
 
   @override
@@ -40,6 +43,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   late TextEditingController _titleCtrl;
   late TextEditingController _descCtrl;
   late TaskCategory _selectedCategory;
+  late TaskPriority _selectedPriority;
   late DateTime _selectedDate;
   late double _startHour;
   late double _endHour;
@@ -56,6 +60,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     _titleCtrl = TextEditingController(text: block?.title ?? widget.initialTitle ?? '');
     _descCtrl = TextEditingController(text: block?.description ?? widget.initialDescription ?? '');
     _selectedCategory = block?.category ?? widget.initialCategory ?? TaskCategory.work;
+    _selectedPriority = block?.priority ?? widget.initialPriority ?? TaskPriority.none;
     _selectedDate = block?.date ?? widget.initialDate ?? normalizeDate(DateTime.now());
     _isPointInTime = block?.isPointInTime ?? (widget.suggestedEndHour == null && widget.suggestedStartHour != null);
     _startHour = block?.startHour ??
@@ -94,6 +99,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         endHour: _isPointInTime ? null : _endHour,
         clearEndHour: _isPointInTime,
         category: _selectedCategory,
+        priority: _selectedPriority,
         notificationEnabled: _notificationEnabled,
         reminderMinutes: _reminderMinutes,
         clearReminderMinutes: _reminderMinutes == null,
@@ -107,6 +113,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         endHour: _isPointInTime ? null : _endHour,
         category: _selectedCategory,
         status: widget.initialStatus ?? TaskStatus.pending,
+        priority: _selectedPriority,
         notificationEnabled: _notificationEnabled,
         reminderMinutes: _reminderMinutes,
       ));
@@ -372,6 +379,20 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
             ),
             const SizedBox(height: 12),
             _buildCategorySelector(isDark),
+            const SizedBox(height: 22),
+
+            // Prioridad
+            Text(
+              l10n.priorityLabel.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF9E98D4),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildPrioritySelector(isDark),
             const SizedBox(height: 22),
 
             // Configuración de Notificación / Recordatorio
@@ -877,6 +898,76 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPrioritySelector(bool isDark) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: TaskPriority.values.map((priority) {
+          final isSelected = priority == _selectedPriority;
+          final color = priority == TaskPriority.none
+              ? (isDark ? const Color(0xFF9E98D4) : const Color(0xFF6C5CE7))
+              : priority.color;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedPriority = priority);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? color
+                      : color.withValues(alpha: isDark ? 0.12 : 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected
+                        ? color
+                        : color.withValues(alpha: isDark ? 0.25 : 0.2),
+                    width: 1.2,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      priority.icon,
+                      color: isSelected ? Colors.white : color,
+                      size: 15,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      priority.getLocalizedName(context),
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : color,
+                        fontSize: 12.5,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 

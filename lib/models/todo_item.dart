@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 import 'task_category.dart';
+import 'task_priority.dart';
 
 /// Modelo de una tarea ToDo (pendiente general sin horario ni fecha fija).
 class TodoItem {
@@ -7,6 +8,7 @@ class TodoItem {
   final String title;
   final String? description;
   final TaskCategory category;
+  final TaskPriority priority;
   final bool isCompleted;
   final DateTime createdAt;
   final DateTime? completedAt;
@@ -16,6 +18,7 @@ class TodoItem {
     required this.title,
     this.description,
     this.category = TaskCategory.none,
+    this.priority = TaskPriority.none,
     this.isCompleted = false,
     required this.createdAt,
     this.completedAt,
@@ -26,12 +29,14 @@ class TodoItem {
     required String title,
     String? description,
     TaskCategory category = TaskCategory.none,
+    TaskPriority priority = TaskPriority.none,
   }) {
     return TodoItem(
       id: const Uuid().v4(),
       title: title.trim(),
       description: description?.trim().isEmpty ?? true ? null : description?.trim(),
       category: category,
+      priority: priority,
       isCompleted: false,
       createdAt: DateTime.now(),
     );
@@ -42,6 +47,7 @@ class TodoItem {
     String? title,
     String? description,
     TaskCategory? category,
+    TaskPriority? priority,
     bool? isCompleted,
     DateTime? createdAt,
     DateTime? completedAt,
@@ -52,6 +58,7 @@ class TodoItem {
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,
+      priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
       createdAt: createdAt ?? this.createdAt,
       completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
@@ -65,6 +72,7 @@ class TodoItem {
         'description': description,
         'category': category.index,
         'categoryId': category.id,
+        'priority': priority.index,
         'isCompleted': isCompleted,
         'createdAt': createdAt.toIso8601String(),
         'completedAt': completedAt?.toIso8601String(),
@@ -77,6 +85,7 @@ class TodoItem {
         'description': description,
         'category': category.index,
         'category_id': category.id,
+        'priority': priority.index,
         'is_completed': isCompleted,
         'created_at': createdAt.toIso8601String(),
         'completed_at': completedAt?.toIso8601String(),
@@ -96,6 +105,7 @@ class TodoItem {
         index: json['category'] as int?,
         customCategories: customCategories,
       ),
+      priority: TaskPriority.fromIndex(json['priority'] as int?),
       isCompleted: json['isCompleted'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
@@ -120,6 +130,7 @@ class TodoItem {
         index: map['category'] as int?,
         customCategories: customCategories,
       ),
+      priority: TaskPriority.fromIndex(map['priority'] as int?),
       isCompleted: map['is_completed'] as bool? ?? map['isCompleted'] as bool? ?? false,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()
@@ -136,5 +147,5 @@ class TodoItem {
 
   @override
   String toString() =>
-      'TodoItem($title, category: ${category.displayName}, isCompleted: $isCompleted)';
+      'TodoItem($title, category: ${category.displayName}, priority: ${priority.displayName}, isCompleted: $isCompleted)';
 }

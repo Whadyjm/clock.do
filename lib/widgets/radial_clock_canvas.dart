@@ -316,6 +316,22 @@ class RadialClockPainter extends CustomPainter {
         p,
       );
     }
+
+    // Marca de prioridad en el inicio del arco
+    if (block.priority.hasPriority && !isCompleted) {
+      final pStart = RadialMath.polarToCartesian(center, radius, startAngle);
+      final beaconRadius = block.priority.isHighOrUrgent ? 4.2 : 3.2;
+      canvas.drawCircle(
+        pStart,
+        beaconRadius + 1.2,
+        Paint()..color = Colors.white,
+      );
+      canvas.drawCircle(
+        pStart,
+        beaconRadius,
+        Paint()..color = block.priority.color,
+      );
+    }
   }
 
   // ── Marcador de Tarea Puntual (Sin Hora Fin) ───────────────
@@ -430,6 +446,18 @@ class RadialClockPainter extends CustomPainter {
           pos,
           2.0,
           Paint()..color = Colors.white.withValues(alpha: 0.9),
+        );
+      }
+
+      // Aro de prioridad para tareas puntuales
+      if (block.priority.hasPriority && !isCompleted) {
+        canvas.drawCircle(
+          pos,
+          thickness * 0.52 + (block.priority.isHighOrUrgent ? 2.5 : 1.5),
+          Paint()
+            ..color = block.priority.color.withValues(alpha: 0.85)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = block.priority.isHighOrUrgent ? 1.8 : 1.2,
         );
       }
     }

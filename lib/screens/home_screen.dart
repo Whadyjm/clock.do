@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
+import '../models/task_priority.dart';
 import '../models/todo_item.dart';
 import '../providers/clock_provider.dart';
 import '../widgets/radial_clock_canvas.dart';
@@ -94,6 +95,7 @@ class _HomeScreenState extends State<HomeScreen>
     String? initialDescription,
     TaskCategory? initialCategory,
     TaskStatus? initialStatus,
+    TaskPriority? initialPriority,
   }) {
     if (!mounted) return;
     HapticFeedback.mediumImpact();
@@ -112,6 +114,7 @@ class _HomeScreenState extends State<HomeScreen>
           initialDescription: initialDescription,
           initialCategory: initialCategory,
           initialStatus: initialStatus,
+          initialPriority: initialPriority,
         ),
       ),
     );
@@ -170,6 +173,7 @@ class _HomeScreenState extends State<HomeScreen>
         initialTitle: itemToSchedule.title,
         initialDescription: itemToSchedule.description,
         initialCategory: itemToSchedule.category,
+        initialPriority: itemToSchedule.priority,
       );
     }
   }
@@ -1017,6 +1021,37 @@ class _HomeScreenState extends State<HomeScreen>
                                 context.l10n.pointTaskBadge,
                                 style: TextStyle(
                                   color: block.category.color,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (block.priority.hasPriority)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: block.priority.color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: block.priority.color.withValues(alpha: 0.35),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                block.priority.icon,
+                                size: 9,
+                                color: block.priority.color,
+                              ),
+                              const SizedBox(width: 2.5),
+                              Text(
+                                block.priority.getLocalizedName(context),
+                                style: TextStyle(
+                                  color: block.priority.color,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                 ),

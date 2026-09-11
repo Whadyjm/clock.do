@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/time_block.dart';
 import '../../models/todo_item.dart';
 import '../../models/task_category.dart';
+import '../../models/task_priority.dart';
 import '../../providers/clock_provider.dart';
 import '../../utils/radial_math.dart';
 import '../../l10n/app_localizations.dart';
@@ -52,6 +53,7 @@ class KanbanCard extends StatelessWidget {
   String get title => isBlock ? block!.title : todo!.title;
   String? get description => isBlock ? block!.description : todo!.description;
   TaskCategory get category => isBlock ? block!.category : todo!.category;
+  TaskPriority get priority => isBlock ? block!.priority : todo!.priority;
   bool get isCompleted => isBlock
       ? block!.status == TaskStatus.completed
       : todo!.isCompleted;
@@ -162,6 +164,36 @@ class KanbanCard extends StatelessWidget {
                         ],
                       ),
                     ),
+
+                    if (priority.hasPriority) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: priority.color.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: priority.color.withValues(alpha: 0.35),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(priority.icon, size: 10, color: priority.color),
+                            const SizedBox(width: 3),
+                            Text(
+                              priority.getLocalizedName(context),
+                              style: TextStyle(
+                                color: priority.color,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     const Spacer(),
 

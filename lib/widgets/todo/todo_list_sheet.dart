@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/todo_item.dart';
 import '../../models/task_category.dart';
+import '../../models/task_priority.dart';
 import '../../providers/clock_provider.dart';
 import '../category_creator_dialog.dart';
 
@@ -24,6 +25,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
   _TodoFilter _currentFilter = _TodoFilter.pending;
   TaskCategory? _selectedCategoryFilter;
   TaskCategory _newCategory = TaskCategory.none;
+  TaskPriority _newPriority = TaskPriority.none;
   bool _showDescriptionField = false;
 
   @override
@@ -49,12 +51,14 @@ class _TodoListSheetState extends State<TodoListSheet> {
       title: title,
       description: desc.isEmpty ? null : desc,
       category: _newCategory,
+      priority: _newPriority,
     ));
 
     _quickTitleCtrl.clear();
     _quickDescCtrl.clear();
     setState(() {
       _showDescriptionField = false;
+      _newPriority = TaskPriority.none;
     });
   }
 
@@ -63,6 +67,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
     final titleCtrl = TextEditingController(text: item.title);
     final descCtrl = TextEditingController(text: item.description ?? '');
     TaskCategory cat = item.category;
+    TaskPriority prio = item.priority;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = Theme.of(context).cardColor;
@@ -168,6 +173,55 @@ class _TodoListSheetState extends State<TodoListSheet> {
                         );
                       }).toList(),
                     ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Prioridad:',
+                      style: TextStyle(color: Color(0xFF9E98D4), fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: TaskPriority.values.map((p) {
+                        final isSel = p == prio;
+                        final color = p == TaskPriority.none
+                            ? (isDark ? const Color(0xFF9E98D4) : const Color(0xFF6C5CE7))
+                            : p.color;
+                        return GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setDialogState(() => prio = p);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isSel ? color.withValues(alpha: 0.2) : (isDark ? const Color(0xFF1A1D2E) : const Color(0xFFF0EEFF)),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSel ? color : Colors.transparent,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(p.icon, size: 13, color: isSel ? color : color.withValues(alpha: 0.7)),
+                                const SizedBox(width: 5),
+                                Text(
+                                  p.getLocalizedName(context),
+                                  style: TextStyle(
+                                    color: isSel ? color : (isDark ? Colors.white70 : const Color(0xFF4B4869)),
+                                    fontSize: 11,
+                                    fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -187,6 +241,7 @@ class _TodoListSheetState extends State<TodoListSheet> {
                                   title: newTitle,
                                   description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
                                   category: cat,
+                                  priority: prio,
                                 ),
                               );
                               Navigator.of(dialogCtx).pop();
@@ -419,6 +474,57 @@ class _TodoListSheetState extends State<TodoListSheet> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(_newCategory.icon, size: 18, color: _newCategory.color),
+                ),
+              ),
+
+              const SizedBox(width: 6),
+
+              // Selector de prioridad rápida
+              PopupMenuButton<TaskPriority>(
+                tooltip: 'Cambiar prioridad',
+                initialValue: _newPriority,
+                onSelected: (p) {
+                  HapticFeedback.selectionClick();
+                  setState(() => _newPriority = p);
+                },
+                itemBuilder: (ctx) => TaskPriority.values.map((p) {
+                  final pColor = p == TaskPriority.none
+                      ? (isDark ? const Color(0xFF9E98D4) : const Color(0xFF6C5CE7))
+                      : p.color;
+                  return PopupMenuItem(
+                    value: p,
+                    child: Row(
+                      children: [
+                        Icon(p.icon, color: pColor, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          p.getLocalizedName(context),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: p == _newPriority ? FontWeight.w800 : FontWeight.w600,
+                            color: p == _newPriority ? pColor : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (_newPriority == TaskPriority.none
+                            ? const Color(0xFF9E98D4)
+                            : _newPriority.color)
+                        .withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _newPriority.icon,
+                    size: 18,
+                    color: _newPriority == TaskPriority.none
+                        ? const Color(0xFF9E98D4)
+                        : _newPriority.color,
+                  ),
                 ),
               ),
 
@@ -815,6 +921,35 @@ class _TodoListSheetState extends State<TodoListSheet> {
                           ],
                         ),
                       ),
+                      if (item.priority.hasPriority) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: item.priority.color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: item.priority.color.withValues(alpha: 0.35),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(item.priority.icon, size: 10, color: item.priority.color),
+                              const SizedBox(width: 3),
+                              Text(
+                                item.priority.getLocalizedName(context),
+                                style: TextStyle(
+                                  color: item.priority.color,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 3),

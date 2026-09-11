@@ -34,6 +34,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusCompleted => 'Completed';
 
   @override
+  String get priorityLabel => 'Priority';
+  @override
+  String get priorityNone => 'None';
+  @override
+  String get priorityLow => 'Low';
+  @override
+  String get priorityMedium => 'Medium';
+  @override
+  String get priorityHigh => 'High';
+  @override
+  String get priorityUrgent => 'Urgent';
+
+  @override
   String get cloudSyncTooltip => 'Sign In / Cloud';
   @override
   String accountTooltip(String email) => 'Account: $email';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'task_category.dart';
+import 'task_priority.dart';
 import '../l10n/app_localizations.dart';
 
 /// Estado de una tarea en el sistema.
@@ -54,6 +55,7 @@ class TimeBlock {
 
   final TaskCategory category;
   final TaskStatus status;
+  final TaskPriority priority;
 
   /// Índice del anillo concéntrico asignado por la lógica de solapamientos.
   /// 0 = anillo exterior, 1 = siguiente hacia adentro, etc.
@@ -87,6 +89,7 @@ class TimeBlock {
     this.endHour,
     this.category = TaskCategory.none,
     this.status = TaskStatus.pending,
+    this.priority = TaskPriority.none,
     this.ringIndex = 0,
     this.notificationEnabled = true,
     this.reminderMinutes,
@@ -104,6 +107,7 @@ class TimeBlock {
     double? endHour,
     TaskCategory category = TaskCategory.none,
     TaskStatus status = TaskStatus.pending,
+    TaskPriority priority = TaskPriority.none,
     bool notificationEnabled = true,
     int? reminderMinutes,
     bool isExternalCalendar = false,
@@ -119,6 +123,7 @@ class TimeBlock {
       endHour: endHour,
       category: category,
       status: status,
+      priority: priority,
       ringIndex: 0,
       notificationEnabled: notificationEnabled,
       reminderMinutes: reminderMinutes,
@@ -171,6 +176,7 @@ class TimeBlock {
     bool clearEndHour = false,
     TaskCategory? category,
     TaskStatus? status,
+    TaskPriority? priority,
     int? ringIndex,
     bool? notificationEnabled,
     int? reminderMinutes,
@@ -188,6 +194,7 @@ class TimeBlock {
       endHour: clearEndHour ? null : (endHour ?? this.endHour),
       category: category ?? this.category,
       status: status ?? this.status,
+      priority: priority ?? this.priority,
       ringIndex: ringIndex ?? this.ringIndex,
       notificationEnabled: notificationEnabled ?? this.notificationEnabled,
       reminderMinutes: clearReminderMinutes
@@ -210,6 +217,7 @@ class TimeBlock {
         'category': category.index,
         'categoryId': category.id,
         'status': status.index,
+        'priority': priority.index,
         'ringIndex': ringIndex,
         'notificationEnabled': notificationEnabled,
         'reminderMinutes': reminderMinutes,
@@ -229,6 +237,7 @@ class TimeBlock {
         'category': category.index,
         'category_id': category.id,
         'status': status.index,
+        'priority': priority.index,
         'notification_enabled': notificationEnabled,
         'reminder_minutes': reminderMinutes,
       };
@@ -253,6 +262,7 @@ class TimeBlock {
         customCategories: customCategories,
       ),
       status: TaskStatus.values[json['status'] as int],
+      priority: TaskPriority.fromIndex(json['priority'] as int?),
       ringIndex: json['ringIndex'] as int? ?? 0,
       notificationEnabled: json['notificationEnabled'] as bool? ?? true,
       reminderMinutes: json['reminderMinutes'] as int?,
@@ -283,6 +293,7 @@ class TimeBlock {
       ),
       status: TaskStatus.values[
           (map['status'] as int? ?? 0).clamp(0, TaskStatus.values.length - 1)],
+      priority: TaskPriority.fromIndex(map['priority'] as int?),
       ringIndex: 0,
       notificationEnabled: map['notification_enabled'] as bool? ?? true,
       reminderMinutes: map['reminder_minutes'] as int?,
@@ -294,5 +305,5 @@ class TimeBlock {
 
   @override
   String toString() =>
-      'TimeBlock($title, ${date.toIso8601String().split('T').first}, ${isPointInTime ? '@$startHour' : '$startHour–$endHour'}, ${category.displayName}, ${status.displayName})';
+      'TimeBlock($title, ${date.toIso8601String().split('T').first}, ${isPointInTime ? '@$startHour' : '$startHour–$endHour'}, ${category.displayName}, ${status.displayName}, ${priority.displayName})';
 }
