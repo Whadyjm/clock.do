@@ -57,11 +57,15 @@ class ClockProvider extends ChangeNotifier {
   List<String> _selectedDeviceCalendarIds = [];
   List<Calendar> _availableDeviceCalendars = [];
   bool _isDeviceCalendarSyncing = false;
+  bool _calendarPermissionDenied = false;
+  bool _calendarPermissionPermanentlyDenied = false;
 
   bool get deviceCalendarSyncEnabled => _deviceCalendarSyncEnabled;
   List<String> get selectedDeviceCalendarIds => List.unmodifiable(_selectedDeviceCalendarIds);
   List<Calendar> get availableDeviceCalendars => List.unmodifiable(_availableDeviceCalendars);
   bool get isDeviceCalendarSyncing => _isDeviceCalendarSyncing;
+  bool get calendarPermissionDenied => _calendarPermissionDenied;
+  bool get calendarPermissionPermanentlyDenied => _calendarPermissionPermanentlyDenied;
 
   // ──────────────────────────────────────────────
   // Configuración Global de Notificaciones
@@ -196,13 +200,17 @@ class ClockProvider extends ChangeNotifier {
   ClockProvider() {
     _startClock();
     _initAndLoad();
-    _initSupabaseListener();
   }
 
-  /// Inicializa notificaciones y luego carga datos en orden garantizado.
+  /// Inicializa notificaciones, carga datos del disco, y luego inicia el listener
+  /// de Supabase en orden garantizado. Esto evita que syncWithCloud() se ejecute
+  /// con _blocks y _todoItems vacíos antes de que se hayan cargado desde SharedPreferences.
   Future<void> _initAndLoad() async {
     await _initNotifications();
     await _loadFromStorage();
+    // El listener de Supabase se inicia solo DESPUÉS de que los datos locales
+    // ya están en memoria, garantizando que syncWithCloud() siempre verá los datos correctos.
+    _initSupabaseListener();
   }
 
   /// Inicializa el servicio de notificaciones y solicita permisos.
@@ -449,45 +457,37 @@ class ClockProvider extends ChangeNotifier {
       // 0. Sincronizar categorías personalizadas
       final cloudCategories = await _supabase.fetchCategories();
       final catMap = <String, TaskCategory>{};
-      for (final c in _customCategories) {
-        catMap[c.id] = c;
-      }
       for (final c in cloudCategories) {
         catMap[c.id] = c;
       }
-      final cloudCatIds = cloudCategories.map((c) => c.id).toSet();
+      for (final c in _customCategories) {
+        catMap[c.id] = c;
+      }
       for (final localCat in _customCategories) {
-        if (!cloudCatIds.contains(localCat.id)) {
-          await _supabase.upsertCategory(localCat);
-        }
+        await _supabase.upsertCategory(localCat);
       }
       _customCategories.clear();
       _customCategories.addAll(catMap.values);
       await _saveCategoriesToStorage();
 
       // 1. Sincronizar bloques de tiempo
-      final cloudBlocks = await _supabase.fetchTimeBlocks();
-      
-      // Combinar bloques de nube y locales (manteniendo eventos del calendario del dispositivo)
-      final blockMap = <String, TimeBlock>{};
-      for (final b in _blocks.where((b) => b.isExternalCalendar)) {
-        blockMap[b.id] = b;
-      }
-      for (final b in cloudBlocks) {
-        blockMap[b.id] = b;
-      }
-      for (final b in _blocks.where((b) => !b.isExternalCalendar)) {
-        if (!blockMap.containsKey(b.id)) {
-          blockMap[b.id] = b;
+      // Subir todos los bloques locales que no pertenezcan al calendario externo
+      for (final localBlock in _blocks) {
+        if (!localBlock.isExternalCalendar) {
+          await _supabase.upsertTimeBlock(localBlock);
         }
       }
 
-      // Si teníamos bloques locales que no estaban en la nube, subirlos (excepto si son del calendario del dispositivo)
-      final cloudIds = cloudBlocks.map((b) => b.id).toSet();
-      for (final localBlock in _blocks) {
-        if (!cloudIds.contains(localBlock.id) && !localBlock.isExternalCalendar) {
-          await _supabase.upsertTimeBlock(localBlock);
-        }
+      // Descargar bloques de la nube
+      final cloudBlocks = await _supabase.fetchTimeBlocks();
+
+      // Combinar: Mantener locales y externos (más recientes), e incorporar bloques de la nube
+      final blockMap = <String, TimeBlock>{};
+      for (final b in cloudBlocks) {
+        blockMap[b.id] = b;
+      }
+      for (final b in _blocks) {
+        blockMap[b.id] = b;
       }
 
       _blocks.clear();
@@ -497,21 +497,19 @@ class ClockProvider extends ChangeNotifier {
       _rescheduleAllNotifications();
 
       // 2. Sincronizar tareas ToDo
+      // Subir todas las tareas locales a la nube
+      for (final localTodo in _todoItems) {
+        await _supabase.upsertTodo(localTodo);
+      }
+
+      // Descargar tareas de la nube
       final cloudTodos = await _supabase.fetchTodos();
       final todoMap = <String, TodoItem>{};
-      for (final t in _todoItems) {
-        todoMap[t.id] = t;
-      }
       for (final t in cloudTodos) {
         todoMap[t.id] = t;
       }
-
-      // Subir tareas locales que no estaban en la nube
-      final cloudTodoIds = cloudTodos.map((t) => t.id).toSet();
-      for (final localTodo in _todoItems) {
-        if (!cloudTodoIds.contains(localTodo.id)) {
-          await _supabase.upsertTodo(localTodo);
-        }
+      for (final t in _todoItems) {
+        todoMap[t.id] = t;
       }
 
       _todoItems.clear();
@@ -849,8 +847,15 @@ class ClockProvider extends ChangeNotifier {
   // ──────────────────────────────────────────────
 
   /// Carga la lista de calendarios disponibles desde el dispositivo.
+  /// Actualiza [calendarPermissionDenied] y [calendarPermissionPermanentlyDenied]
+  /// para que la UI pueda dar feedback preciso al usuario.
   Future<List<Calendar>> loadDeviceCalendars() async {
-    _availableDeviceCalendars = await _deviceCalService.getCalendars();
+    final result = await _deviceCalService.getCalendars();
+
+    _calendarPermissionDenied = result.permissionDenied;
+    _calendarPermissionPermanentlyDenied = result.permissionPermanentlyDenied;
+    _availableDeviceCalendars = result.calendars;
+
     // Si no hay ninguno seleccionado previamente y se encuentran calendarios, seleccionar todos por defecto
     if (_selectedDeviceCalendarIds.isEmpty && _availableDeviceCalendars.isNotEmpty) {
       _selectedDeviceCalendarIds = _availableDeviceCalendars

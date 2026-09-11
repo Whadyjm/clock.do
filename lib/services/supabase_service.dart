@@ -167,6 +167,8 @@ class SupabaseService {
 
   /// Inserta o actualiza un bloque de tiempo
   Future<void> upsertTimeBlock(TimeBlock block) async {
+    if (block.isExternalCalendar) return;
+
     final supa = client;
     final user = currentUser;
     if (supa == null || user == null) return;

@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'providers/clock_provider.dart';
 import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
+import 'services/supabase_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +20,14 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // Inicializar dependencias críticas ANTES de crear ClockProvider.
+  // Esto garantiza que Supabase.instance.client no sea null cuando el
+  // provider intente hacer upserts desde addBlock() / addTodo().
+  await initializeDateFormatting('es', null);
+  await initializeDateFormatting('en', null);
+  await NotificationService().init();
+  await SupabaseService().initialize();
 
   runApp(const ClockDoApp());
 }

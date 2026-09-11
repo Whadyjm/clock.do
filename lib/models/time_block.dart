@@ -225,15 +225,12 @@ class TimeBlock {
         'description': description,
         'date': date.toIso8601String().split('T').first,
         'start_hour': startHour,
-        'end_hour': endHour,
+        'end_hour': endHour ?? startHour,
         'category': category.index,
         'category_id': category.id,
         'status': status.index,
         'notification_enabled': notificationEnabled,
         'reminder_minutes': reminderMinutes,
-        'is_external_calendar': isExternalCalendar,
-        'external_event_id': externalEventId,
-        'external_calendar_name': externalCalendarName,
       };
 
   /// Deserializa desde JSON.

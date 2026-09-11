@@ -264,7 +264,157 @@ class _DeviceCalendarSheetState extends State<DeviceCalendarSheet> {
                         ),
                       ),
                     )
+                  else if (provider.calendarPermissionPermanentlyDenied)
+                    // ── ESTADO: PERMISO DENEGADO PERMANENTEMENTE ──
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: sectionBg,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFFF7675).withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF7675).withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.lock_rounded,
+                              size: 32,
+                              color: Color(0xFFFF7675),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.deviceCalendarPermissionPermanentlyDenied,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            l10n.deviceCalendarOpenSettingsHint,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: textColor.withValues(alpha: 0.55),
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF6C5CE7),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () async {
+                              // Abrir los ajustes del sistema para que el usuario
+                              // pueda conceder el permiso manualmente.
+                              // Si el proyecto agrega el paquete 'app_settings',
+                              // reemplazar por: AppSettings.openAppSettings();
+                              // Por ahora, mostramos un snackbar guía.
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(l10n.deviceCalendarGoToSettings),
+                                    backgroundColor: const Color(0xFF6C5CE7),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.settings_rounded, size: 16),
+                            label: Text(
+                              l10n.deviceCalendarOpenSettings,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (provider.calendarPermissionDenied)
+                    // ── ESTADO: PERMISO DENEGADO (puede reintentar) ──
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: sectionBg,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFFDCB6E).withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFDCB6E).withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.calendar_month_rounded,
+                              size: 32,
+                              color: Color(0xFFFDCB6E),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.deviceCalendarPermissionRequired,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            l10n.deviceCalendarPermissionHint,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: textColor.withValues(alpha: 0.55),
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF6C5CE7)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: _loadCalendars,
+                            icon: const Icon(Icons.shield_rounded, size: 16, color: Color(0xFF6C5CE7)),
+                            label: Text(
+                              l10n.deviceCalendarGrantPermission,
+                              style: const TextStyle(
+                                color: Color(0xFF6C5CE7),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   else if (calendars.isEmpty)
+                    // ── ESTADO: SIN CALENDARIOS (genuinamente vacío) ──
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -311,6 +461,7 @@ class _DeviceCalendarSheetState extends State<DeviceCalendarSheet> {
                         ],
                       ),
                     )
+
                   else
                     ListView.separated(
                       shrinkWrap: true,

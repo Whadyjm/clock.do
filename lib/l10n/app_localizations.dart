@@ -290,6 +290,13 @@ abstract class AppLocalizations {
   String get deviceCalendarStatusEnabled;
   String get deviceCalendarStatusDisabled;
   String deviceCalendarLinkedCount(int count);
+  // Nuevos: estados de permisos
+  String get deviceCalendarPermissionRequired;
+  String get deviceCalendarPermissionHint;
+  String get deviceCalendarPermissionPermanentlyDenied;
+  String get deviceCalendarOpenSettingsHint;
+  String get deviceCalendarOpenSettings;
+  String get deviceCalendarGoToSettings;
 }
 
 class _AppLocalizationsDelegate

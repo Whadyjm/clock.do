@@ -1,10 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/notification_service.dart';
-import '../services/supabase_service.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -72,10 +69,10 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _runInit() async {
-    await initializeDateFormatting('es', null);
-    await initializeDateFormatting('en', null);
-    await NotificationService().init();
-    await SupabaseService().initialize();
+    // Supabase, NotificationService e internacionalización ya fueron
+    // inicializados en main() antes de runApp(). No hace falta repetirlos.
+    // Este método existe solo para extender el tiempo mínimo del splash si
+    // alguna inicialización adicional futura lo requiriera.
   }
 
   Future<void> _navigateNext() async {

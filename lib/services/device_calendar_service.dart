@@ -3,6 +3,26 @@ import 'package:flutter/foundation.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
 
+/// Resultado tipado de la carga de calendarios del dispositivo.
+/// Permite distinguir entre permiso denegado, permanentemente denegado y lista real.
+class CalendarLoadResult {
+  final List<Calendar> calendars;
+
+  /// true si el usuario denegó el permiso en este intento o en uno anterior.
+  final bool permissionDenied;
+
+  /// true si el permiso fue denegado permanentemente (hay que ir a Ajustes del sistema).
+  final bool permissionPermanentlyDenied;
+
+  const CalendarLoadResult({
+    required this.calendars,
+    required this.permissionDenied,
+    required this.permissionPermanentlyDenied,
+  });
+
+  bool get hasCalendars => calendars.isNotEmpty;
+}
+
 /// Servicio para interactuar con los calendarios nativos del dispositivo (Google, iCloud, etc.).
 class DeviceCalendarService {
   static final DeviceCalendarService _instance = DeviceCalendarService._internal();
@@ -34,22 +54,50 @@ class DeviceCalendarService {
   }
 
   /// Obtiene la lista de todos los calendarios disponibles en el dispositivo.
-  Future<List<Calendar>> getCalendars() async {
+  Future<CalendarLoadResult> getCalendars() async {
     try {
+      // Verificar si ya tenemos permisos
       final hasPerm = await hasPermissions();
       if (!hasPerm) {
+        // Solicitar permiso al usuario
         final granted = await requestPermissions();
-        if (!granted) return [];
+        if (!granted) {
+          // Intentar verificar nuevamente para detectar si fue denegado permanentemente.
+          // device_calendar no expone directamente "permanentlyDenied", pero si hasPermissions()
+          // sigue en false tras requestPermissions(), asumimos denegado permanente en el segundo intento.
+          final stillDenied = !(await hasPermissions());
+          debugPrint('[DeviceCalendarService] Permiso denegado (permanente: $stillDenied)');
+          return CalendarLoadResult(
+            calendars: [],
+            permissionDenied: true,
+            permissionPermanentlyDenied: stillDenied,
+          );
+        }
       }
 
       final calendarsResult = await _deviceCalendarPlugin.retrieveCalendars();
       if (calendarsResult.isSuccess && calendarsResult.data != null) {
-        return calendarsResult.data!.toList();
+        final list = calendarsResult.data!.toList();
+        debugPrint('[DeviceCalendarService] Calendarios encontrados: ${list.length}');
+        return CalendarLoadResult(
+          calendars: list,
+          permissionDenied: false,
+          permissionPermanentlyDenied: false,
+        );
       }
-      return [];
+      debugPrint('[DeviceCalendarService] retrieveCalendars falló: ${calendarsResult.errors.map((e) => e.errorMessage).join(", ")}');
+      return const CalendarLoadResult(
+        calendars: [],
+        permissionDenied: false,
+        permissionPermanentlyDenied: false,
+      );
     } catch (e) {
       debugPrint('[DeviceCalendarService] Error obteniendo calendarios: $e');
-      return [];
+      return const CalendarLoadResult(
+        calendars: [],
+        permissionDenied: false,
+        permissionPermanentlyDenied: false,
+      );
     }
   }
 

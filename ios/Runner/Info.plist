@@ -49,6 +49,8 @@
 		<string>Clock.Do necesita acceder a tus calendarios para sincronizar tus eventos en el reloj radial.</string>
 		<key>NSCalendarsFullAccessUsageDescription</key>
 		<string>Clock.Do necesita acceder a tus calendarios para sincronizar tus eventos en el reloj radial.</string>
+		<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+		<string>Clock.Do puede agregar eventos a tu calendario desde el reloj radial.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

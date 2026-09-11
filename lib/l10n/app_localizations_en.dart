@@ -482,4 +482,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deviceCalendarStatusDisabled => 'Disabled';
   @override
   String deviceCalendarLinkedCount(int count) => count == 1 ? '1 calendar linked' : '$count calendars linked';
+  @override
+  String get deviceCalendarPermissionRequired => 'Calendar Permission Required';
+  @override
+  String get deviceCalendarPermissionHint => 'Clock.Do needs access to your calendars to display your events. Tap the button to grant access.';
+  @override
+  String get deviceCalendarPermissionPermanentlyDenied => 'Calendar Access Blocked';
+  @override
+  String get deviceCalendarOpenSettingsHint => 'You have permanently denied calendar access. Go to System Settings › Privacy › Calendars to enable it.';
+  @override
+  String get deviceCalendarOpenSettings => 'Open Settings';
+  @override
+  String get deviceCalendarGoToSettings => 'Go to System Settings › Apps › Clock.Do › Permissions › Calendar';
 }
+

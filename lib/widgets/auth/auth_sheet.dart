@@ -688,6 +688,25 @@ class _AuthSheetState extends State<AuthSheet> {
               : () async {
                   HapticFeedback.selectionClick();
                   await provider.syncWithCloud();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: const [
+                            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                            SizedBox(width: 8),
+                            Text('¡Datos sincronizados correctamente con la nube!'),
+                          ],
+                        ),
+                        backgroundColor: const Color(0xFF00B894),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
+                  }
                 },
           icon: const Icon(Icons.sync_rounded, size: 20),
           label: Text(
