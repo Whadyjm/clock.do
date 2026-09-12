@@ -96,7 +96,7 @@ class NotificationService {
         final exactAlarmGranted = await androidImpl.requestExactAlarmsPermission();
         debugPrint('[ClockDo Notif] Android exact alarm permission: $exactAlarmGranted');
 
-        return (notifGranted ?? false) && (exactAlarmGranted ?? false);
+        return notifGranted ?? true;
       }
 
       final iosImpl = _plugin.resolvePlatformSpecificImplementation<
@@ -165,7 +165,7 @@ class NotificationService {
     }
     if (!_isInitialized) await init();
 
-    // Cancelar recordatorio previo si existe
+    // Cancelar recordatorios previos de este bloque si existen
     await cancelTaskReminder(block.id);
 
     // No programar tareas ya completadas
@@ -186,22 +186,17 @@ class NotificationService {
       minute,
     );
 
-    // Momento exacto del aviso restando los minutos de anticipación
-    final reminderTime = taskStart.subtract(Duration(minutes: minutesBefore));
+    final now = DateTime.now();
 
-    // Solo programar si la hora del recordatorio es en el futuro
-    if (reminderTime.isBefore(DateTime.now())) {
-      debugPrint('[ClockDo Notif] Reminder time for "${block.title}" is in the past '
-          '($reminderTime vs ${DateTime.now()}), skipping');
+    // Si la hora de inicio de la tarea ya pasó completamente, no programar
+    if (taskStart.isBefore(now)) {
+      debugPrint('[ClockDo Notif] Task start for "${block.title}" is in the past '
+          '($taskStart vs $now), skipping');
       return;
     }
 
-    final id = _notificationId(block.id);
+    final reminderTime = taskStart.subtract(Duration(minutes: minutesBefore));
     final timeFormatted = RadialMath.decimalHoursToString(block.startHour);
-
-    final timingMessage = minutesBefore == 0
-        ? 'Comienza ahora ($timeFormatted)'
-        : 'Comienza en $minutesBefore minutos ($timeFormatted)';
 
     const androidDetails = AndroidNotificationDetails(
       _channelId,
@@ -218,18 +213,54 @@ class NotificationService {
     );
     const details = NotificationDetails(android: androidDetails, iOS: darwinDetails);
 
+    // 1. Notificación con anticipación (si minutesBefore > 0 y reminderTime está en el futuro)
+    if (minutesBefore > 0) {
+      if (reminderTime.isAfter(now)) {
+        final advanceId = _notificationId(block.id);
+        await _scheduleSingleZonedNotification(
+          id: advanceId,
+          title: '⏰ ${block.title}',
+          body: '${block.category.displayName} • Comienza en $minutesBefore minutos ($timeFormatted)',
+          scheduledDate: reminderTime,
+          details: details,
+        );
+      } else {
+        debugPrint('[ClockDo Notif] Advance reminder time for "${block.title}" already passed '
+            '($reminderTime vs $now), scheduling directly at start time.');
+      }
+    }
+
+    // 2. Notificación al inicio del evento ("Comienza ahora")
+    final startId = minutesBefore == 0
+        ? _notificationId(block.id)
+        : _startNotificationId(block.id);
+
+    await _scheduleSingleZonedNotification(
+      id: startId,
+      title: '⏰ ${block.title}',
+      body: '${block.category.displayName} • Comienza ahora ($timeFormatted)',
+      scheduledDate: taskStart,
+      details: details,
+    );
+  }
+
+  /// Programa una notificación en zona horaria intentando primero alarma exacta y fallback a inexacta
+  Future<void> _scheduleSingleZonedNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    required NotificationDetails details,
+  }) async {
     try {
-      final scheduledTz = tz.TZDateTime.from(reminderTime, tz.local);
+      final scheduledTz = tz.TZDateTime.from(scheduledDate, tz.local);
+      debugPrint('[ClockDo Notif] Scheduling notification #$id for "$title" at $scheduledTz');
 
-      debugPrint('[ClockDo Notif] Scheduling notification #$id for "${block.title}" '
-          'at $scheduledTz (task starts at $taskStart, reminder $minutesBefore min before)');
-
-      // Intentar primero con alarma exacta; si falla (permiso denegado), usar inexacta
       try {
         await _plugin.zonedSchedule(
           id,
-          '⏰ ${block.title}',
-          '${block.category.displayName} • $timingMessage',
+          title,
+          body,
           scheduledTz,
           details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -241,8 +272,8 @@ class NotificationService {
         debugPrint('[ClockDo Notif] ⚠️ Exact alarm failed, falling back to inexact: $exactError');
         await _plugin.zonedSchedule(
           id,
-          '⏰ ${block.title}',
-          '${block.category.displayName} • $timingMessage',
+          title,
+          body,
           scheduledTz,
           details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -252,7 +283,7 @@ class NotificationService {
         debugPrint('[ClockDo Notif] ✅ Scheduled (inexact fallback) notification #$id');
       }
     } catch (e) {
-      debugPrint('[ClockDo Notif] ❌ ERROR scheduling notification for "${block.title}": $e');
+      debugPrint('[ClockDo Notif] ❌ ERROR scheduling notification #$id: $e');
     }
   }
 
@@ -261,6 +292,7 @@ class NotificationService {
     if (!_isInitialized) await init();
     try {
       await _plugin.cancel(_notificationId(blockId));
+      await _plugin.cancel(_startNotificationId(blockId));
       await cancelIntervalReminders(blockId);
     } catch (e) {
       debugPrint('[ClockDo Notif] ERROR cancelling notification for $blockId: $e');
@@ -388,6 +420,11 @@ class NotificationService {
   /// Convierte un UUID string a un entero seguro para Android Notification ID
   int _notificationId(String blockId) {
     return blockId.hashCode.abs() % 2147483647;
+  }
+
+  /// Genera un ID secundario seguro para la notificación que avisa al inicio del evento
+  int _startNotificationId(String blockId) {
+    return (blockId.hashCode ^ 0x2A5A).abs() % 2147483647;
   }
 }
 

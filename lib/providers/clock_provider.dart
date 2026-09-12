@@ -323,6 +323,34 @@ class ClockProvider extends ChangeNotifier {
   bool isBlockNotificationActive(TimeBlock block) =>
       _notificationsEnabled && block.notificationEnabled;
 
+  /// Obtiene la versión del bloque situada en su próxima ocurrencia activa si es recurrente.
+  TimeBlock _resolveNextOccurrenceBlock(TimeBlock block) {
+    if (!block.isRecurring) return block;
+
+    final now = DateTime.now();
+    final today = normalizeDate(now);
+    final hour = block.startHour.floor() % 24;
+    final minute = ((block.startHour - block.startHour.floor()) * 60).round();
+
+    // Comprobar si ocurre hoy y su hora aún no ha pasado
+    if (block.occursOnDate(today)) {
+      final todayStart = DateTime(today.year, today.month, today.day, hour, minute);
+      if (todayStart.isAfter(now)) {
+        return block.copyWith(date: today);
+      }
+    }
+
+    // Buscar la próxima fecha que coincida con la regla de recurrencia en los siguientes 30 días
+    for (int i = 1; i <= 30; i++) {
+      final candidateDate = today.add(Duration(days: i));
+      if (block.occursOnDate(candidateDate)) {
+        return block.copyWith(date: candidateDate);
+      }
+    }
+
+    return block;
+  }
+
   /// Programa o cancela la notificación de un bloque respetando su configuración individual y la global.
   void _scheduleBlockNotification(TimeBlock block) {
     if (!_notificationsEnabled || !block.notificationEnabled) {
@@ -330,18 +358,21 @@ class ClockProvider extends ChangeNotifier {
       _notifService.cancelIntervalReminders(block.id);
       return;
     }
+
+    final targetBlock = _resolveNextOccurrenceBlock(block);
+
     _notifService.scheduleTaskReminder(
-      block: block,
-      minutesBefore: effectiveReminderMinutes(block),
+      block: targetBlock,
+      minutesBefore: effectiveReminderMinutes(targetBlock),
       enabled: true,
     );
-    if (block.hasIntervalReminder) {
+    if (targetBlock.hasIntervalReminder) {
       _notifService.scheduleIntervalReminders(
-        block: block,
+        block: targetBlock,
         enabled: true,
       );
     } else {
-      _notifService.cancelIntervalReminders(block.id);
+      _notifService.cancelIntervalReminders(targetBlock.id);
     }
   }
 

@@ -249,35 +249,48 @@ class NotificationSettingsSheet extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Botón de Prueba
-            /*SizedBox(
+            SizedBox(
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  provider.sendTestNotification();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Notificación de prueba enviada 🔔'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: const Color(0xFF6C5CE7),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
+                onPressed: provider.notificationsEnabled
+                    ? () {
+                        HapticFeedback.mediumImpact();
+                        provider.sendTestNotification();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text(l10n.testNotificationSent),
+                              ],
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: const Color(0xFF6C5CE7),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    : null,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF6C5CE7),
-                  side: const BorderSide(color: Color(0xFF6C5CE7), width: 1.5),
+                  side: BorderSide(
+                    color: provider.notificationsEnabled
+                        ? const Color(0xFF6C5CE7)
+                        : (isDark ? const Color(0xFF2A2D42) : const Color(0xFFDDD9F5)),
+                    width: 1.5,
+                  ),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 icon: const Icon(Icons.send_rounded, size: 18),
-                label: const Text(
-                  'Enviar Notificación de Prueba',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                label: Text(
+                  l10n.testNotificationButton,
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                 ),
               ),
-            ),*/
+            ),
           ],
         ),
       ),

@@ -42,13 +42,17 @@ android {
         applicationId = "com.dabliu.clockdo"
         minSdk = 23       // Mínimo para alarmas exactas (API 23+)
         targetSdk = 36    // Requerido para SCHEDULE_EXACT_ALARM en Android 12+
-        versionCode = 5
+        versionCode = 7
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
