@@ -6,9 +6,12 @@ import '../models/time_block.dart';
 import '../models/task_category.dart';
 import '../models/todo_item.dart';
 import '../models/gamification_data.dart';
+import '../models/sync_action.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import '../services/device_calendar_service.dart';
+import '../services/local_database_service.dart';
+import '../services/connectivity_service.dart';
 import 'package:device_calendar/device_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../l10n/app_localizations.dart';
@@ -58,6 +61,17 @@ class ClockProvider extends ChangeNotifier {
   String? _lastUserId;
 
   AppViewMode get viewMode => _viewMode;
+
+  // ──────────────────────────────────────────────
+  // Base de Datos Local y Conectividad (Offline-First)
+  // ──────────────────────────────────────────────
+  final LocalDatabaseService _localDb = LocalDatabaseService();
+  final ConnectivityService _connectivity = ConnectivityService();
+  StreamSubscription<bool>? _connectivitySub;
+
+  bool get isOnline => _connectivity.isOnline;
+  int get pendingSyncCount => _localDb.pendingSyncCount;
+  bool get hasPendingSync => _localDb.hasPendingSync;
 
   // ──────────────────────────────────────────────
   // Configuración de Supabase / Cloud Sync
@@ -228,15 +242,24 @@ class ClockProvider extends ChangeNotifier {
     _initAndLoad();
   }
 
-  /// Inicializa notificaciones, carga datos del disco, y luego inicia el listener
-  /// de Supabase en orden garantizado. Esto evita que syncWithCloud() se ejecute
-  /// con _blocks y _todoItems vacíos antes de que se hayan cargado desde SharedPreferences.
+  /// Inicializa notificaciones, carga datos del disco y base de datos local Hive,
+  /// e inicia listeners de conectividad y Supabase.
   Future<void> _initAndLoad() async {
     await _initNotifications();
     await _loadFromStorage();
-    // El listener de Supabase se inicia solo DESPUÉS de que los datos locales
-    // ya están en memoria, garantizando que syncWithCloud() siempre verá los datos correctos.
+    _initConnectivityListener();
     _initSupabaseListener();
+  }
+
+  /// Escucha cambios de conectividad para sincronizar automáticamente al recuperar conexión
+  void _initConnectivityListener() {
+    _connectivitySub = _connectivity.onConnectivityChanged.listen((isOnline) {
+      notifyListeners();
+      if (isOnline && _supabase.isAuthenticated) {
+        debugPrint('[ClockProvider] Conexión a internet restablecida. Sincronizando con Supabase...');
+        syncWithCloud();
+      }
+    });
   }
 
   /// Inicializa el servicio de notificaciones y solicita permisos.
@@ -512,15 +535,94 @@ class ClockProvider extends ChangeNotifier {
   // Sincronización con Supabase (Nube)
   // ──────────────────────────────────────────────
 
-  /// Sincroniza bloques y tareas ToDo con Supabase.
+  // ──────────────────────────────────────────────
+  // Sincronización con Supabase (Nube) & Cola Offline
+  // ──────────────────────────────────────────────
+
+  /// Sincroniza bloques, tareas ToDo, notas y categorías con Supabase.
+  /// 1. Drena la cola de sincronización offline (_localDb.syncQueue).
+  /// 2. Descarga cambios remotos y fusiona con la base de datos local Hive.
   Future<void> syncWithCloud() async {
     if (!_supabase.isAuthenticated || _isCloudSyncing) return;
+
+    // Verificar si realmente existe una conexión a internet funcional
+    final isOnline = await _connectivity.checkGoodConnection();
+    if (!isOnline) {
+      debugPrint('[ClockProvider] syncWithCloud omitido: sin conexión a internet.');
+      return;
+    }
 
     _isCloudSyncing = true;
     notifyListeners();
 
     try {
-      // 0. Sincronizar categorías personalizadas
+      // ── Paso 1: Drenar cola de sincronización offline (sync_queue) ──
+      final pendingActions = _localDb.getPendingSyncActions();
+      if (pendingActions.isNotEmpty) {
+        debugPrint('[ClockProvider] Drenando ${pendingActions.length} acciones pendientes de sync_queue...');
+
+        // Ejecutar primero las eliminaciones para evitar que la descarga posterior las resucite
+        final deletes = pendingActions
+            .where((a) => a.operation == SyncOperationType.delete)
+            .toList();
+        for (final action in deletes) {
+          bool success = false;
+          switch (action.entityType) {
+            case SyncEntityType.timeBlock:
+              success = await _supabase.deleteTimeBlock(action.targetId);
+              break;
+            case SyncEntityType.todo:
+              success = await _supabase.deleteTodo(action.targetId);
+              break;
+            case SyncEntityType.category:
+              success = await _supabase.deleteCategory(action.targetId);
+              break;
+            case SyncEntityType.gamification:
+              success = true;
+              break;
+          }
+          if (success) {
+            await _localDb.removeSyncAction(action.id);
+          }
+        }
+
+        // Luego ejecutar inserciones y actualizaciones (upserts)
+        final upserts = pendingActions
+            .where((a) => a.operation == SyncOperationType.upsert)
+            .toList();
+        for (final action in upserts) {
+          bool success = false;
+          if (action.payload == null) {
+            await _localDb.removeSyncAction(action.id);
+            continue;
+          }
+          switch (action.entityType) {
+            case SyncEntityType.timeBlock:
+              success = await _supabase.upsertTimeBlockMap(action.payload!);
+              break;
+            case SyncEntityType.todo:
+              success = await _supabase.upsertTodoMap(action.payload!);
+              break;
+            case SyncEntityType.category:
+              success = await _supabase.upsertCategoryMap(action.payload!);
+              break;
+            case SyncEntityType.gamification:
+              try {
+                success = await _supabase.upsertGamification(
+                  GamificationData.fromJson(action.payload!),
+                );
+              } catch (_) {
+                success = false;
+              }
+              break;
+          }
+          if (success) {
+            await _localDb.removeSyncAction(action.id);
+          }
+        }
+      }
+
+      // ── Paso 2: Sincronizar Categorías Personalizadas ──
       final cloudCategories = await _supabase.fetchCategories();
       final catMap = <String, TaskCategory>{};
       for (final c in cloudCategories) {
@@ -536,8 +638,8 @@ class ClockProvider extends ChangeNotifier {
       _customCategories.addAll(catMap.values);
       await _saveCategoriesToStorage();
 
-      // 1. Sincronizar bloques de tiempo
-      // Subir todos los bloques locales que no pertenezcan al calendario externo
+      // ── Paso 3: Sincronizar Bloques de Tiempo ──
+      // Subir bloques locales creados por el usuario
       for (final localBlock in _blocks) {
         if (!localBlock.isExternalCalendar) {
           await _supabase.upsertTimeBlock(localBlock);
@@ -546,8 +648,6 @@ class ClockProvider extends ChangeNotifier {
 
       // Descargar bloques de la nube
       final cloudBlocks = await _supabase.fetchTimeBlocks();
-
-      // Combinar: Mantener locales y externos (más recientes), e incorporar bloques de la nube
       final blockMap = <String, TimeBlock>{};
       for (final b in cloudBlocks) {
         blockMap[b.id] = b;
@@ -562,13 +662,11 @@ class ClockProvider extends ChangeNotifier {
       await _saveToStorage();
       _rescheduleAllNotifications();
 
-      // 2. Sincronizar tareas ToDo
-      // Subir todas las tareas locales a la nube
+      // ── Paso 4: Sincronizar Tareas ToDo y Notas ──
       for (final localTodo in _todoItems) {
         await _supabase.upsertTodo(localTodo);
       }
 
-      // Descargar tareas de la nube
       final cloudTodos = await _supabase.fetchTodos();
       final todoMap = <String, TodoItem>{};
       for (final t in cloudTodos) {
@@ -583,7 +681,7 @@ class ClockProvider extends ChangeNotifier {
       _todoItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       await _saveTodosToStorage();
 
-      // 3. Sincronizar Gamificación
+      // ── Paso 5: Sincronizar Gamificación y Logros ──
       final cloudGamification = await _supabase.fetchGamification();
       if (cloudGamification != null) {
         if (_gamification.ticks == 0 &&
@@ -591,27 +689,47 @@ class ClockProvider extends ChangeNotifier {
             _gamification.unlockedAchievements.isEmpty) {
           _gamification = cloudGamification;
         } else {
-          final mergedAchievements = Map<String, DateTime>.from(_gamification.unlockedAchievements);
+          final mergedAchievements =
+              Map<String, DateTime>.from(_gamification.unlockedAchievements);
           cloudGamification.unlockedAchievements.forEach((k, v) {
-            if (!mergedAchievements.containsKey(k) || v.isBefore(mergedAchievements[k]!)) {
+            if (!mergedAchievements.containsKey(k) ||
+                v.isBefore(mergedAchievements[k]!)) {
               mergedAchievements[k] = v;
             }
           });
 
           _gamification = _gamification.copyWith(
-            ticks: _gamification.ticks > cloudGamification.ticks ? _gamification.ticks : cloudGamification.ticks,
-            currentStreak: _gamification.currentStreak > cloudGamification.currentStreak ? _gamification.currentStreak : cloudGamification.currentStreak,
-            bestStreak: _gamification.bestStreak > cloudGamification.bestStreak ? _gamification.bestStreak : cloudGamification.bestStreak,
-            streakFreezeCount: _gamification.streakFreezeCount > cloudGamification.streakFreezeCount ? _gamification.streakFreezeCount : cloudGamification.streakFreezeCount,
-            totalCompletedTasks: _gamification.totalCompletedTasks > cloudGamification.totalCompletedTasks ? _gamification.totalCompletedTasks : cloudGamification.totalCompletedTasks,
-            totalFocusMinutes: _gamification.totalFocusMinutes > cloudGamification.totalFocusMinutes ? _gamification.totalFocusMinutes : cloudGamification.totalFocusMinutes,
+            ticks: _gamification.ticks > cloudGamification.ticks
+                ? _gamification.ticks
+                : cloudGamification.ticks,
+            currentStreak: _gamification.currentStreak > cloudGamification.currentStreak
+                ? _gamification.currentStreak
+                : cloudGamification.currentStreak,
+            bestStreak: _gamification.bestStreak > cloudGamification.bestStreak
+                ? _gamification.bestStreak
+                : cloudGamification.bestStreak,
+            streakFreezeCount: _gamification.streakFreezeCount >
+                    cloudGamification.streakFreezeCount
+                ? _gamification.streakFreezeCount
+                : cloudGamification.streakFreezeCount,
+            totalCompletedTasks: _gamification.totalCompletedTasks >
+                    cloudGamification.totalCompletedTasks
+                ? _gamification.totalCompletedTasks
+                : cloudGamification.totalCompletedTasks,
+            totalFocusMinutes: _gamification.totalFocusMinutes >
+                    cloudGamification.totalFocusMinutes
+                ? _gamification.totalFocusMinutes
+                : cloudGamification.totalFocusMinutes,
             unlockedAchievements: mergedAchievements,
-            lastActiveDate: _gamification.lastActiveDate ?? cloudGamification.lastActiveDate,
+            lastActiveDate:
+                _gamification.lastActiveDate ?? cloudGamification.lastActiveDate,
           );
         }
       }
       await _saveGamificationToStorage();
       await _supabase.upsertGamification(_gamification);
+
+      debugPrint('[ClockProvider] Sincronización con la nube completada exitosamente.');
     } catch (e) {
       debugPrint('[ClockProvider] Error al sincronizar con la nube: $e');
     } finally {
@@ -620,9 +738,9 @@ class ClockProvider extends ChangeNotifier {
     }
   }
 
-  /// Cierra sesión en Supabase y limpia todas las tareas y datos del usuario de la UI y del almacenamiento local.
+  /// Cierra sesión en Supabase y limpia todas las tareas y datos del usuario de la UI,
+  /// de la base de datos Hive y de SharedPreferences.
   Future<void> signOut() async {
-    // 1. Intentar sincronizar datos pendientes con la nube antes de salir
     if (_supabase.isAuthenticated) {
       try {
         await syncWithCloud();
@@ -631,10 +749,7 @@ class ClockProvider extends ChangeNotifier {
       }
     }
 
-    // 2. Cerrar sesión en el cliente de Supabase
     await _supabase.signOut();
-
-    // 3. Limpiar los datos del usuario de memoria y de SharedPreferences
     await clearUserData();
   }
 
@@ -644,6 +759,9 @@ class ClockProvider extends ChangeNotifier {
   Future<void> clearUserData() async {
     _lastUserId = null;
     await _saveLastUserIdToStorage();
+
+    // Limpiar base de datos local Hive
+    await _localDb.clearUserData(preserveExternalCalendar: true);
 
     // Eliminar bloques creados por el usuario (conservar eventos de calendario del dispositivo)
     _blocks.removeWhere((b) => !b.isExternalCalendar);
@@ -670,6 +788,181 @@ class ClockProvider extends ChangeNotifier {
   }
 
   // ──────────────────────────────────────────────
+  // Encolado y Sincronización Remota (Offline-First)
+  // ──────────────────────────────────────────────
+
+  Future<void> _pushTimeBlockRemote(TimeBlock block) async {
+    if (block.isExternalCalendar) return;
+    if (_connectivity.isOnline && _supabase.isAuthenticated) {
+      final success = await _supabase.upsertTimeBlock(block);
+      if (!success) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: block.id,
+          entityType: SyncEntityType.timeBlock,
+          operation: SyncOperationType.upsert,
+          payload: block.toJson(),
+        ));
+        notifyListeners();
+      }
+    } else {
+      if (_supabase.isAuthenticated) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: block.id,
+          entityType: SyncEntityType.timeBlock,
+          operation: SyncOperationType.upsert,
+          payload: block.toJson(),
+        ));
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _deleteTimeBlockRemote(String id) async {
+    if (_connectivity.isOnline && _supabase.isAuthenticated) {
+      final success = await _supabase.deleteTimeBlock(id);
+      if (!success) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: id,
+          entityType: SyncEntityType.timeBlock,
+          operation: SyncOperationType.delete,
+        ));
+        notifyListeners();
+      }
+    } else {
+      if (_supabase.isAuthenticated) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: id,
+          entityType: SyncEntityType.timeBlock,
+          operation: SyncOperationType.delete,
+        ));
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _pushTodoRemote(TodoItem item) async {
+    if (_connectivity.isOnline && _supabase.isAuthenticated) {
+      final success = await _supabase.upsertTodo(item);
+      if (!success) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: item.id,
+          entityType: SyncEntityType.todo,
+          operation: SyncOperationType.upsert,
+          payload: item.toJson(),
+        ));
+        notifyListeners();
+      }
+    } else {
+      if (_supabase.isAuthenticated) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: item.id,
+          entityType: SyncEntityType.todo,
+          operation: SyncOperationType.upsert,
+          payload: item.toJson(),
+        ));
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _deleteTodoRemote(String id) async {
+    if (_connectivity.isOnline && _supabase.isAuthenticated) {
+      final success = await _supabase.deleteTodo(id);
+      if (!success) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: id,
+          entityType: SyncEntityType.todo,
+          operation: SyncOperationType.delete,
+        ));
+        notifyListeners();
+      }
+    } else {
+      if (_supabase.isAuthenticated) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: id,
+          entityType: SyncEntityType.todo,
+          operation: SyncOperationType.delete,
+        ));
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _pushCategoryRemote(TaskCategory category) async {
+    if (category.isDefault) return;
+    if (_connectivity.isOnline && _supabase.isAuthenticated) {
+      final success = await _supabase.upsertCategory(category);
+      if (!success) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: category.id,
+          entityType: SyncEntityType.category,
+          operation: SyncOperationType.upsert,
+          payload: category.toJson(),
+        ));
+        notifyListeners();
+      }
+    } else {
+      if (_supabase.isAuthenticated) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: category.id,
+          entityType: SyncEntityType.category,
+          operation: SyncOperationType.upsert,
+          payload: category.toJson(),
+        ));
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _deleteCategoryRemote(String id) async {
+    if (_connectivity.isOnline && _supabase.isAuthenticated) {
+      final success = await _supabase.deleteCategory(id);
+      if (!success) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: id,
+          entityType: SyncEntityType.category,
+          operation: SyncOperationType.delete,
+        ));
+        notifyListeners();
+      }
+    } else {
+      if (_supabase.isAuthenticated) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: id,
+          entityType: SyncEntityType.category,
+          operation: SyncOperationType.delete,
+        ));
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _pushGamificationRemote() async {
+    if (_connectivity.isOnline && _supabase.isAuthenticated) {
+      final success = await _supabase.upsertGamification(_gamification);
+      if (!success) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: 'gamification',
+          entityType: SyncEntityType.gamification,
+          operation: SyncOperationType.upsert,
+          payload: _gamification.toJson(),
+        ));
+        notifyListeners();
+      }
+    } else {
+      if (_supabase.isAuthenticated) {
+        await _localDb.enqueueSyncAction(SyncAction.create(
+          targetId: 'gamification',
+          entityType: SyncEntityType.gamification,
+          operation: SyncOperationType.upsert,
+          payload: _gamification.toJson(),
+        ));
+        notifyListeners();
+      }
+    }
+  }
+
+  // ──────────────────────────────────────────────
   // CRUD de bloques
   // ──────────────────────────────────────────────
 
@@ -677,7 +970,7 @@ class ClockProvider extends ChangeNotifier {
     _blocks.add(block);
     _recalculateAllRings();
     _saveToStorage();
-    _supabase.upsertTimeBlock(block);
+    _pushTimeBlockRemote(block);
     _scheduleBlockNotification(block);
     notifyListeners();
   }
@@ -688,7 +981,7 @@ class ClockProvider extends ChangeNotifier {
       _blocks[idx] = updated;
       _recalculateAllRings();
       _saveToStorage();
-      _supabase.upsertTimeBlock(updated);
+      _pushTimeBlockRemote(updated);
       _scheduleBlockNotification(updated);
       notifyListeners();
     }
@@ -698,7 +991,7 @@ class ClockProvider extends ChangeNotifier {
     _blocks.removeWhere((b) => b.id == id);
     _recalculateAllRings();
     _saveToStorage();
-    _supabase.deleteTimeBlock(id);
+    _deleteTimeBlockRemote(id);
     _notifService.cancelTaskReminder(id);
     notifyListeners();
   }
@@ -712,7 +1005,7 @@ class ClockProvider extends ChangeNotifier {
     final updated = block.copyWith(status: nextStatus);
     _blocks[idx] = updated;
     _saveToStorage();
-    _supabase.upsertTimeBlock(updated);
+    _pushTimeBlockRemote(updated);
 
     if (nextStatus == TaskStatus.completed) {
       _notifService.cancelTaskReminder(id);
@@ -733,7 +1026,7 @@ class ClockProvider extends ChangeNotifier {
     final updated = block.copyWith(status: newStatus);
     _blocks[idx] = updated;
     _saveToStorage();
-    _supabase.upsertTimeBlock(updated);
+    _pushTimeBlockRemote(updated);
 
     if (newStatus == TaskStatus.completed) {
       _notifService.cancelTaskReminder(id);
@@ -756,7 +1049,7 @@ class ClockProvider extends ChangeNotifier {
     if (idx == -1) return;
     final todo = _todoItems.removeAt(idx);
     _saveTodosToStorage();
-    _supabase.deleteTodo(todoId);
+    _deleteTodoRemote(todoId);
 
     final targetDate = date ?? _selectedDate;
     final double defaultStart = startHour ?? (_now.hour + (_now.minute / 60.0)).clamp(0.0, 23.5);
@@ -782,7 +1075,7 @@ class ClockProvider extends ChangeNotifier {
     final block = _blocks.removeAt(idx);
     _recalculateAllRings();
     _saveToStorage();
-    _supabase.deleteTimeBlock(blockId);
+    _deleteTimeBlockRemote(blockId);
     _notifService.cancelTaskReminder(blockId);
 
     final todo = TodoItem(
@@ -795,7 +1088,7 @@ class ClockProvider extends ChangeNotifier {
     );
     _todoItems.insert(0, todo);
     _saveTodosToStorage();
-    _supabase.upsertTodo(todo);
+    _pushTodoRemote(todo);
     notifyListeners();
   }
 
@@ -806,7 +1099,7 @@ class ClockProvider extends ChangeNotifier {
   void addTodo(TodoItem item) {
     _todoItems.insert(0, item); // Las más recientes arriba
     _saveTodosToStorage();
-    _supabase.upsertTodo(item);
+    _pushTodoRemote(item);
     notifyListeners();
   }
 
@@ -815,7 +1108,7 @@ class ClockProvider extends ChangeNotifier {
     if (idx != -1) {
       _todoItems[idx] = updated;
       _saveTodosToStorage();
-      _supabase.upsertTodo(updated);
+      _pushTodoRemote(updated);
       notifyListeners();
     }
   }
@@ -832,7 +1125,7 @@ class ClockProvider extends ChangeNotifier {
     );
     _todoItems[idx] = updated;
     _saveTodosToStorage();
-    _supabase.upsertTodo(updated);
+    _pushTodoRemote(updated);
     if (nextCompleted) {
       _onTodoCompleted(updated);
     }
@@ -842,7 +1135,7 @@ class ClockProvider extends ChangeNotifier {
   void deleteTodo(String id) {
     _todoItems.removeWhere((t) => t.id == id);
     _saveTodosToStorage();
-    _supabase.deleteTodo(id);
+    _deleteTodoRemote(id);
     notifyListeners();
   }
 
@@ -851,7 +1144,7 @@ class ClockProvider extends ChangeNotifier {
     _todoItems.removeWhere((t) => t.isCompleted);
     _saveTodosToStorage();
     for (final item in completed) {
-      _supabase.deleteTodo(item.id);
+      _deleteTodoRemote(item.id);
     }
     notifyListeners();
   }
@@ -885,7 +1178,7 @@ class ClockProvider extends ChangeNotifier {
       );
       _todoItems[idx] = updatedTodo;
       _saveTodosToStorage();
-      _supabase.upsertTodo(updatedTodo);
+      _pushTodoRemote(updatedTodo);
     }
     notifyListeners();
   }
@@ -971,24 +1264,28 @@ class ClockProvider extends ChangeNotifier {
   }
 
   Future<void> _saveCategoriesToStorage() async {
+    await _localDb.saveCategories(_customCategories);
     final prefs = await SharedPreferences.getInstance();
     final jsonList = _customCategories.map((c) => jsonEncode(c.toJson())).toList();
     await prefs.setStringList(_kCategoriesStorageKey, jsonList);
   }
 
   Future<void> _saveToStorage() async {
+    await _localDb.saveTimeBlocks(_blocks);
     final prefs = await SharedPreferences.getInstance();
     final jsonList = _blocks.map((b) => jsonEncode(b.toJson())).toList();
     await prefs.setStringList(_kStorageKey, jsonList);
   }
 
   Future<void> _saveTodosToStorage() async {
+    await _localDb.saveTodos(_todoItems);
     final prefs = await SharedPreferences.getInstance();
     final jsonList = _todoItems.map((t) => jsonEncode(t.toJson())).toList();
     await prefs.setStringList(_kTodoStorageKey, jsonList);
   }
 
   Future<void> _saveGamificationToStorage() async {
+    await _localDb.saveGamification(_gamification);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kGamificationStorageKey, jsonEncode(_gamification.toJson()));
   }
@@ -1128,7 +1425,7 @@ class ClockProvider extends ChangeNotifier {
     if (_customCategories.any((c) => c.id == category.id)) return;
     _customCategories.add(category);
     _saveCategoriesToStorage();
-    _supabase.upsertCategory(category);
+    _pushCategoryRemote(category);
     notifyListeners();
   }
 
@@ -1137,7 +1434,7 @@ class ClockProvider extends ChangeNotifier {
     if (idx != -1) {
       _customCategories[idx] = updated;
       _saveCategoriesToStorage();
-      _supabase.upsertCategory(updated);
+      _pushCategoryRemote(updated);
       notifyListeners();
     }
   }
@@ -1147,24 +1444,33 @@ class ClockProvider extends ChangeNotifier {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].category.id == categoryId) {
         _blocks[i] = _blocks[i].copyWith(category: TaskCategory.none);
-        _supabase.upsertTimeBlock(_blocks[i]);
+        _pushTimeBlockRemote(_blocks[i]);
       }
     }
     for (var i = 0; i < _todoItems.length; i++) {
       if (_todoItems[i].category.id == categoryId) {
         _todoItems[i] = _todoItems[i].copyWith(category: TaskCategory.none);
-        _supabase.upsertTodo(_todoItems[i]);
+        _pushTodoRemote(_todoItems[i]);
       }
     }
     _saveToStorage();
     _saveTodosToStorage();
     _saveCategoriesToStorage();
-    _supabase.deleteCategory(categoryId);
+    _deleteCategoryRemote(categoryId);
     notifyListeners();
   }
 
   Future<void> _loadFromStorage() async {
+    // Asegurar que Hive y el detector de conectividad estén listos
+    if (!_localDb.isInitialized) {
+      await _localDb.init();
+    }
+    await _connectivity.init();
+
     final prefs = await SharedPreferences.getInstance();
+
+    // Migración automática y transparente desde SharedPreferences si Hive está vacío
+    await _localDb.migrateFromSharedPreferencesIfEmpty(prefs);
 
     // Cargar último ID de usuario autenticado
     if (prefs.containsKey(_kLastUserIdKey)) {
@@ -1209,43 +1515,56 @@ class ClockProvider extends ChangeNotifier {
       }
     }
 
-    // Cargar Categorías Personalizadas primero (para que estén disponibles al deserializar bloques y todos)
-    final catJsonList = prefs.getStringList(_kCategoriesStorageKey) ?? [];
+    // 1. Cargar Categorías Personalizadas desde Hive (o fallback a SharedPreferences)
     _customCategories.clear();
-    for (final json in catJsonList) {
-      try {
-        _customCategories.add(TaskCategory.fromJson(jsonDecode(json)));
-      } catch (_) {
-        // Ignorar categorías corruptas
+    final localCategories = _localDb.getCategories();
+    if (localCategories.isNotEmpty) {
+      _customCategories.addAll(localCategories);
+    } else {
+      final catJsonList = prefs.getStringList(_kCategoriesStorageKey) ?? [];
+      for (final json in catJsonList) {
+        try {
+          _customCategories.add(TaskCategory.fromJson(jsonDecode(json)));
+        } catch (_) {}
       }
     }
 
-    // Cargar Tareas del Reloj
-    final jsonList = prefs.getStringList(_kStorageKey) ?? [];
+    // 2. Cargar Tareas del Reloj desde Hive (o fallback a SharedPreferences)
     _blocks.clear();
-    for (final json in jsonList) {
-      try {
-        _blocks.add(TimeBlock.fromJson(jsonDecode(json), customCategories: _customCategories));
-      } catch (_) {
-        // Ignorar bloques corruptos
+    final localBlocks = _localDb.getTimeBlocks(customCategories: _customCategories);
+    if (localBlocks.isNotEmpty) {
+      _blocks.addAll(localBlocks);
+    } else {
+      final jsonList = prefs.getStringList(_kStorageKey) ?? [];
+      for (final json in jsonList) {
+        try {
+          _blocks.add(TimeBlock.fromJson(jsonDecode(json), customCategories: _customCategories));
+        } catch (_) {}
       }
     }
     _recalculateAllRings();
     _rescheduleAllNotifications();
 
-    // Cargar Tareas ToDo (Backlog)
-    final todoJsonList = prefs.getStringList(_kTodoStorageKey) ?? [];
+    // 3. Cargar Tareas ToDo (Backlog y Notas) desde Hive (o fallback a SharedPreferences)
     _todoItems.clear();
-    for (final json in todoJsonList) {
-      try {
-        _todoItems.add(TodoItem.fromJson(jsonDecode(json), customCategories: _customCategories));
-      } catch (_) {
-        // Ignorar items corruptos
+    final localTodos = _localDb.getTodos(customCategories: _customCategories);
+    if (localTodos.isNotEmpty) {
+      _todoItems.addAll(localTodos);
+    } else {
+      final todoJsonList = prefs.getStringList(_kTodoStorageKey) ?? [];
+      for (final json in todoJsonList) {
+        try {
+          _todoItems.add(TodoItem.fromJson(jsonDecode(json), customCategories: _customCategories));
+        } catch (_) {}
       }
     }
 
-    // Cargar Gamificación y Maestría
-    if (prefs.containsKey(_kGamificationStorageKey)) {
+    // 4. Cargar Gamificación y Maestría desde Hive (o fallback a SharedPreferences)
+    final localGamification = _localDb.getGamification();
+    if (localGamification != null) {
+      _gamification = localGamification;
+      _evaluateStreakGrace();
+    } else if (prefs.containsKey(_kGamificationStorageKey)) {
       try {
         final raw = prefs.getString(_kGamificationStorageKey);
         if (raw != null) {
@@ -1300,12 +1619,12 @@ class ClockProvider extends ChangeNotifier {
       );
       _gamificationToast = 'freeze_used';
       _saveGamificationToStorage();
-      _supabase.upsertGamification(_gamification);
+      _pushGamificationRemote();
     } else if (diffDays > 1) {
       // Racha rota por inactividad
       _gamification = _gamification.copyWith(currentStreak: 0);
       _saveGamificationToStorage();
-      _supabase.upsertGamification(_gamification);
+      _pushGamificationRemote();
     }
   }
 
@@ -1339,7 +1658,7 @@ class ClockProvider extends ChangeNotifier {
       );
       _evaluateAchievements();
       _saveGamificationToStorage();
-      _supabase.upsertGamification(_gamification);
+      _pushGamificationRemote();
     }
   }
 
@@ -1423,7 +1742,7 @@ class ClockProvider extends ChangeNotifier {
     _evaluateAchievements(triggerBlock: block);
 
     _saveGamificationToStorage();
-    _supabase.upsertGamification(_gamification);
+    _pushGamificationRemote();
   }
 
   /// Procesa la finalización de una tarea ToDo del backlog (+15 Ticks).
@@ -1456,7 +1775,7 @@ class ClockProvider extends ChangeNotifier {
     _evaluateCategoryAchievements();
 
     _saveGamificationToStorage();
-    _supabase.upsertGamification(_gamification);
+    _pushGamificationRemote();
   }
 
   /// Desbloquea un logro específico si aún no ha sido obtenido.
@@ -1582,6 +1901,7 @@ class ClockProvider extends ChangeNotifier {
     _isDisposed = true;
     _clockTimer?.cancel();
     _authSub?.cancel();
+    _connectivitySub?.cancel();
     super.dispose();
   }
 }

@@ -31,7 +31,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _fabCtrl;
   late Animation<double> _fabScale;
   late AnimationController _headerCtrl;
@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     // Escuchar eventos de recuperación de contraseña de Supabase
     _authSub = SupabaseService().authStateChanges?.listen((data) {
@@ -78,7 +79,19 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      final provider = context.read<ClockProvider>();
+      if (provider.isUserLoggedIn && !provider.isCloudSyncing) {
+        debugPrint('[HomeScreen] App reanudada (resumed). Sincronizando datos con Supabase...');
+        provider.syncWithCloud();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
     _fabCtrl.dispose();
     _headerCtrl.dispose();
@@ -457,20 +470,37 @@ class _HomeScreenState extends State<HomeScreen>
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Botón de Perfil / Nube Supabase
+              // Botón de Perfil / Nube Supabase con estado Offline-First
               _buildHeaderIconButton(
                 buttonBg: buttonBg,
-                tooltip: provider.isUserLoggedIn
-                    ? l10n.accountTooltip(provider.userEmail ?? "")
-                    : l10n.cloudSyncTooltip,
-                icon: provider.isUserLoggedIn
-                    ? (provider.isCloudSyncing
-                        ? Icons.sync_rounded
-                        : Icons.cloud_done_rounded)
-                    : Icons.cloud_outlined,
-                iconColor: provider.isUserLoggedIn
-                    ? const Color(0xFF00CEC9)
-                    : const Color(0xFF6C5CE7),
+                tooltip: !provider.isUserLoggedIn
+                    ? (provider.hasPendingSync
+                        ? '${provider.pendingSyncCount} cambios pendientes (inicia sesión para sincronizar)'
+                        : l10n.cloudSyncTooltip)
+                    : (provider.isCloudSyncing
+                        ? 'Sincronizando con la nube...'
+                        : (!provider.isOnline
+                            ? 'Modo sin conexión • ${provider.pendingSyncCount} pendientes'
+                            : (provider.hasPendingSync
+                                ? '${provider.pendingSyncCount} cambios pendientes de sincronizar'
+                                : l10n.accountTooltip(provider.userEmail ?? "")))),
+                icon: provider.isCloudSyncing
+                    ? Icons.sync_rounded
+                    : (!provider.isOnline
+                        ? Icons.cloud_off_rounded
+                        : (provider.hasPendingSync
+                            ? Icons.cloud_upload_rounded
+                            : (provider.isUserLoggedIn
+                                ? Icons.cloud_done_rounded
+                                : Icons.cloud_outlined))),
+                iconColor: provider.isCloudSyncing
+                    ? const Color(0xFF6C5CE7)
+                    : (!provider.isOnline || provider.hasPendingSync
+                        ? const Color(0xFFE17055)
+                        : (provider.isUserLoggedIn
+                            ? const Color(0xFF00CEC9)
+                            : const Color(0xFF6C5CE7))),
+                badgeCount: provider.hasPendingSync ? provider.pendingSyncCount : 0,
                 onTap: () => _openAuthSheet(context),
               ),
               const SizedBox(width: 4),

@@ -9,6 +9,8 @@ import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'services/supabase_service.dart';
 import 'services/notification_service.dart';
+import 'services/local_database_service.dart';
+import 'services/connectivity_service.dart';
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -22,11 +24,13 @@ void main() async {
   ]);
 
   // Inicializar dependencias críticas ANTES de crear ClockProvider.
-  // Esto garantiza que Supabase.instance.client no sea null cuando el
-  // provider intente hacer upserts desde addBlock() / addTodo().
+  // Esto garantiza que la base de datos local Hive, conectividad y Supabase
+  // estén listos cuando el provider arranque.
   await initializeDateFormatting('es', null);
   await initializeDateFormatting('en', null);
   await NotificationService().init();
+  await LocalDatabaseService().init();
+  await ConnectivityService().init();
   await SupabaseService().initialize();
 
   runApp(const ClockDoApp());

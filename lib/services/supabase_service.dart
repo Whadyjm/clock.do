@@ -165,13 +165,13 @@ class SupabaseService {
     }
   }
 
-  /// Inserta o actualiza un bloque de tiempo
-  Future<void> upsertTimeBlock(TimeBlock block) async {
-    if (block.isExternalCalendar) return;
+  /// Inserta o actualiza un bloque de tiempo en Supabase
+  Future<bool> upsertTimeBlock(TimeBlock block) async {
+    if (block.isExternalCalendar) return true;
 
     final supa = client;
     final user = currentUser;
-    if (supa == null || user == null) return;
+    if (supa == null || user == null) return false;
 
     try {
       final map = block.toSupabaseMap();
@@ -179,16 +179,33 @@ class SupabaseService {
       map['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
       await supa.from('time_blocks').upsert(map);
+      return true;
     } catch (e) {
       debugPrint('[SupabaseService] Error al guardar time_block: $e');
+      return false;
     }
   }
 
-  /// Elimina un bloque de tiempo
-  Future<void> deleteTimeBlock(String blockId) async {
+  /// Inserta o actualiza un bloque de tiempo usando su payload JSON deserializado
+  Future<bool> upsertTimeBlockMap(Map<String, dynamic> rawMap) async {
     final supa = client;
     final user = currentUser;
-    if (supa == null || user == null) return;
+    if (supa == null || user == null) return false;
+
+    try {
+      final block = TimeBlock.fromJson(rawMap);
+      return await upsertTimeBlock(block);
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al procesar upsertTimeBlockMap: $e');
+      return false;
+    }
+  }
+
+  /// Elimina un bloque de tiempo de Supabase
+  Future<bool> deleteTimeBlock(String blockId) async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null) return false;
 
     try {
       await supa
@@ -196,8 +213,10 @@ class SupabaseService {
           .delete()
           .eq('id', blockId)
           .eq('user_id', user.id);
+      return true;
     } catch (e) {
       debugPrint('[SupabaseService] Error al eliminar time_block: $e');
+      return false;
     }
   }
 
@@ -229,11 +248,11 @@ class SupabaseService {
     }
   }
 
-  /// Inserta o actualiza una tarea ToDo
-  Future<void> upsertTodo(TodoItem todo) async {
+  /// Inserta o actualiza una tarea ToDo en Supabase
+  Future<bool> upsertTodo(TodoItem todo) async {
     final supa = client;
     final user = currentUser;
-    if (supa == null || user == null) return;
+    if (supa == null || user == null) return false;
 
     try {
       final map = todo.toSupabaseMap();
@@ -241,16 +260,33 @@ class SupabaseService {
       map['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
       await supa.from('todos').upsert(map);
+      return true;
     } catch (e) {
       debugPrint('[SupabaseService] Error al guardar todo: $e');
+      return false;
     }
   }
 
-  /// Elimina una tarea ToDo
-  Future<void> deleteTodo(String todoId) async {
+  /// Inserta o actualiza un todo usando su payload JSON deserializado
+  Future<bool> upsertTodoMap(Map<String, dynamic> rawMap) async {
     final supa = client;
     final user = currentUser;
-    if (supa == null || user == null) return;
+    if (supa == null || user == null) return false;
+
+    try {
+      final todo = TodoItem.fromJson(rawMap);
+      return await upsertTodo(todo);
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al procesar upsertTodoMap: $e');
+      return false;
+    }
+  }
+
+  /// Elimina una tarea ToDo de Supabase
+  Future<bool> deleteTodo(String todoId) async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null) return false;
 
     try {
       await supa
@@ -258,8 +294,10 @@ class SupabaseService {
           .delete()
           .eq('id', todoId)
           .eq('user_id', user.id);
+      return true;
     } catch (e) {
       debugPrint('[SupabaseService] Error al eliminar todo: $e');
+      return false;
     }
   }
 
@@ -291,11 +329,11 @@ class SupabaseService {
     }
   }
 
-  /// Inserta o actualiza una categoría personalizada
-  Future<void> upsertCategory(TaskCategory category) async {
+  /// Inserta o actualiza una categoría personalizada en Supabase
+  Future<bool> upsertCategory(TaskCategory category) async {
     final supa = client;
     final user = currentUser;
-    if (supa == null || user == null || category.isDefault) return;
+    if (supa == null || user == null || category.isDefault) return false;
 
     try {
       final map = category.toSupabaseMap();
@@ -303,16 +341,33 @@ class SupabaseService {
       map['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
       await supa.from('categories').upsert(map);
+      return true;
     } catch (e) {
       debugPrint('[SupabaseService] Error al guardar category: $e');
+      return false;
     }
   }
 
-  /// Elimina una categoría personalizada
-  Future<void> deleteCategory(String categoryId) async {
+  /// Inserta o actualiza una categoría usando su payload JSON deserializado
+  Future<bool> upsertCategoryMap(Map<String, dynamic> rawMap) async {
     final supa = client;
     final user = currentUser;
-    if (supa == null || user == null) return;
+    if (supa == null || user == null) return false;
+
+    try {
+      final cat = TaskCategory.fromJson(rawMap);
+      return await upsertCategory(cat);
+    } catch (e) {
+      debugPrint('[SupabaseService] Error al procesar upsertCategoryMap: $e');
+      return false;
+    }
+  }
+
+  /// Elimina una categoría personalizada de Supabase
+  Future<bool> deleteCategory(String categoryId) async {
+    final supa = client;
+    final user = currentUser;
+    if (supa == null || user == null) return false;
 
     try {
       await supa
@@ -320,8 +375,10 @@ class SupabaseService {
           .delete()
           .eq('id', categoryId)
           .eq('user_id', user.id);
+      return true;
     } catch (e) {
       debugPrint('[SupabaseService] Error al eliminar category: $e');
+      return false;
     }
   }
 
@@ -353,10 +410,10 @@ class SupabaseService {
   }
 
   /// Inserta o actualiza los datos de gamificación del usuario en Supabase
-  Future<void> upsertGamification(GamificationData data) async {
+  Future<bool> upsertGamification(GamificationData data) async {
     final supa = client;
     final user = currentUser;
-    if (supa == null || user == null) return;
+    if (supa == null || user == null) return false;
 
     try {
       final map = data.toSupabaseMap();
@@ -364,8 +421,10 @@ class SupabaseService {
       map['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
       await supa.from('user_gamification').upsert(map);
+      return true;
     } catch (e) {
       debugPrint('[SupabaseService] Error al guardar gamification: $e');
+      return false;
     }
   }
 }
