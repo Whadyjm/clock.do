@@ -20,6 +20,8 @@ import '../widgets/settings/app_settings_sheet.dart';
 import '../widgets/gamification/gamification_sheet.dart';
 import '../widgets/gamification/achievement_unlocked_dialog.dart';
 import '../widgets/kanban/kanban_board_view.dart';
+import '../widgets/pomodoro/pomodoro_focus_view.dart';
+import '../widgets/pomodoro/pomodoro_mini_player.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/radial_math.dart';
 
@@ -257,6 +259,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     final provider = context.watch<ClockProvider>();
     final isKanban = provider.viewMode == AppViewMode.kanban;
+    final isPomodoro = provider.viewMode == AppViewMode.pomodoro;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -273,14 +276,15 @@ class _HomeScreenState extends State<HomeScreen>
                     child: _buildHeader(context),
                   ),
                 ),
-                // ── Selector de Modo (Reloj / Kanban) ───────────────
+                // ── Selector de Modo (Reloj / Kanban / Pomodoro) ─────
                 _buildModeSwitcher(context),
-                // ── Tira semanal ───────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                  child: const WeeklyDateStrip(),
-                ),
-                // ── Vista Condicional: Kanban vs Reloj Radial ────────
+                // ── Tira semanal (oculta en modo Pomodoro para foco) ─
+                if (!isPomodoro)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                    child: const WeeklyDateStrip(),
+                  ),
+                // ── Vista Condicional: Kanban vs Pomodoro vs Reloj Radial ────────
                 if (isKanban)
                   Expanded(
                     child: KanbanBoardView(
@@ -294,6 +298,10 @@ class _HomeScreenState extends State<HomeScreen>
                       onEditBlock: (block) => _openEditSheet(context, block.id),
                       onEditTodo: (todo) => _openTodoListSheet(context),
                     ),
+                  )
+                else if (isPomodoro)
+                  const Expanded(
+                    child: PomodoroFocusView(),
                   )
                 else ...[
                   // ── Reloj colapsable (FUERA del scroll) ────────────
@@ -322,10 +330,17 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ],
             ),
+            // Mini-reproductor flotante para cuando el usuario explora Reloj o Kanban con Pomodoro activo
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: PomodoroMiniPlayer(),
+            ),
           ],
         ),
       ),
-      floatingActionButton: _buildFAB(context),
+      floatingActionButton: isPomodoro ? null : _buildFAB(context),
     );
   }
 
@@ -601,13 +616,15 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Selector de Modo (Reloj / Kanban)
+  // Selector de Modo (Reloj / Kanban / Pomodoro)
   // ──────────────────────────────────────────────
 
   Widget _buildModeSwitcher(BuildContext context) {
     final provider = context.watch<ClockProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isClock = provider.viewMode == AppViewMode.clock;
     final isKanban = provider.viewMode == AppViewMode.kanban;
+    final isPomodoro = provider.viewMode == AppViewMode.pomodoro;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 6, 16, 2),
@@ -623,7 +640,7 @@ class _HomeScreenState extends State<HomeScreen>
               context,
               title: context.l10n.clockView,
               icon: Icons.access_time_filled_rounded,
-              isSelected: !isKanban,
+              isSelected: isClock,
               onTap: () {
                 HapticFeedback.selectionClick();
                 provider.setViewMode(AppViewMode.clock);
@@ -642,6 +659,20 @@ class _HomeScreenState extends State<HomeScreen>
               },
             ),
           ),
+          Expanded(
+            child: _buildModeTab(
+              context,
+              title: context.l10n.pomodoroView,
+              icon: Icons.timer_rounded,
+              emoji: '🍅',
+              activeColor: const Color(0xFFFF2A3C),
+              isSelected: isPomodoro,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                provider.setViewMode(AppViewMode.pomodoro);
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -651,10 +682,13 @@ class _HomeScreenState extends State<HomeScreen>
     BuildContext context, {
     required String title,
     required IconData icon,
+    String? emoji,
+    Color? activeColor,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedColor = activeColor ?? const Color(0xFF6C5CE7);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -662,14 +696,12 @@ class _HomeScreenState extends State<HomeScreen>
         curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark ? const Color(0xFF6C5CE7) : const Color(0xFF6C5CE7))
-              : Colors.transparent,
+          color: isSelected ? selectedColor : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
+                    color: selectedColor.withValues(alpha: 0.35),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -679,12 +711,17 @@ class _HomeScreenState extends State<HomeScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isSelected ? Colors.white : const Color(0xFF9E98D4),
-            ),
-            const SizedBox(width: 6),
+            if (emoji != null) ...[
+              Text(emoji, style: const TextStyle(fontSize: 13)),
+              const SizedBox(width: 4),
+            ] else ...[
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? Colors.white : const Color(0xFF9E98D4),
+              ),
+              const SizedBox(width: 6),
+            ],
             Text(
               title,
               style: TextStyle(
@@ -797,6 +834,15 @@ class _HomeScreenState extends State<HomeScreen>
                     date: provider.selectedDate,
                   ),
                   onBlockTap: (id) => _openEditSheet(ctx, id),
+                  onStartPomodoro: (block) {
+                    provider.setPomodoroActiveTask(
+                      id: block.id,
+                      title: block.title,
+                      category: block.category,
+                      isTodo: false,
+                    );
+                    provider.setViewMode(AppViewMode.pomodoro);
+                  },
                 ),
               ),
             ),
@@ -1212,6 +1258,33 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
                 ],
+              ),
+            ),
+
+            // Botón rápido Pomodoro
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                provider.setPomodoroActiveTask(
+                  id: block.id,
+                  title: block.title,
+                  category: block.category,
+                  isTodo: false,
+                );
+                provider.setViewMode(AppViewMode.pomodoro);
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF7675).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.timer_rounded,
+                  size: 15,
+                  color: Color(0xFFFF7675),
+                ),
               ),
             ),
 

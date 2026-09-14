@@ -652,5 +652,97 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveToPreviousStatus => 'Move to previous status';
   @override
   String get moveToNextStatus => 'Move to next status';
+
+  // ── Modo Pomodoro / Enfoque ──
+  @override
+  String get pomodoroView => 'Pomodoro';
+  @override
+  String get pomodoroFocus => 'Focus';
+  @override
+  String get pomodoroShortBreak => 'Short Break';
+  @override
+  String get pomodoroLongBreak => 'Long Break';
+  @override
+  String get pomodoroStart => 'Start';
+  @override
+  String get pomodoroPause => 'Pause';
+  @override
+  String get pomodoroResume => 'Resume';
+  @override
+  String get pomodoroReset => 'Reset';
+  @override
+  String get pomodoroSkip => 'Skip phase';
+  @override
+  String get pomodoroSelectTask => 'Attach task';
+  @override
+  String get pomodoroFreeFocus => 'Free Focus';
+  @override
+  String get pomodoroNoActiveTask => 'No task attached';
+  @override
+  String get pomodoroChangeTask => 'Change task';
+  @override
+  String get pomodoroCompleteTask => 'Complete task';
+  @override
+  String get pomodoroMarkCompleted => 'Mark task as completed';
+  @override
+  String get pomodoroSettings => 'Pomodoro Settings';
+  @override
+  String get pomodoroFocusDuration => 'Focus Duration';
+  @override
+  String get pomodoroShortBreakDuration => 'Short Break';
+  @override
+  String get pomodoroLongBreakDuration => 'Long Break';
+  @override
+  String get pomodoroCyclesBeforeLongBreak => 'Cycles before long break';
+  @override
+  String get pomodoroAutoStartBreaks => 'Auto-start breaks';
+  @override
+  String get pomodoroAutoStartFocus => 'Auto-start pomodoros';
+  @override
+  String get pomodoroCompletedSessions => 'Completed sessions';
+  @override
+  String get pomodoroTotalFocusTime => 'Total focus time';
+  @override
+  String get pomodoroTicksEarned => 'Ticks earned';
+  @override
+  String get pomodoroRound => 'Round';
+  @override
+  String get pomodoroMinutesShort => 'min';
+  @override
+  String get pomodoroStartFocusPrompt => 'Time for deep focus!';
+  @override
+  String get pomodoroFocusCompletedNotificationTitle => '🎉 Focus session complete!';
+  @override
+  String get pomodoroFocusCompletedNotificationBody => 'Great job. Enjoy a well-deserved break.';
+  @override
+  String get pomodoroBreakCompletedNotificationTitle => '⚡ Break is over!';
+  @override
+  String get pomodoroBreakCompletedNotificationBody => 'Ready for your next focus session?';
+  @override
+  String get pomodoroStartWithTask => 'Start Pomodoro';
+  @override
+  String get pomodoroChooseFromSchedule => 'Today\'s scheduled tasks';
+  @override
+  String get pomodoroChooseFromBacklog => 'Backlog pending tasks';
+
+  // ── Logros de Pomodoro ──
+  @override
+  String get pomodoroNotificationSettingTitle => 'Alert notifications';
+  @override
+  String get pomodoroNotificationSettingDesc => 'Alert with vibration when focus or break intervals end';
+  @override
+  String get pomodoroSoundSettingTitle => 'Notification sound';
+  @override
+  String get badgePomodoroFirstTitle => 'First Focus';
+  @override
+  String get badgePomodoroFirstDesc => 'Completed your first Pomodoro focus session';
+  @override
+  String get badgePomodoroMaster4Title => 'Pomodoro Master';
+  @override
+  String get badgePomodoroMaster4Desc => 'Completed 4 Pomodoro focus blocks in a single day';
+  @override
+  String get badgePomodoroZen10Title => 'Flow State';
+  @override
+  String get badgePomodoroZen10Desc => 'Accumulated 10 Pomodoro focus sessions';
 }
 

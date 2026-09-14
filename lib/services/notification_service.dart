@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -19,6 +20,15 @@ class NotificationService {
   static const String _channelId = 'clockdo_tasks_channel';
   static const String _channelName = 'Recordatorios de Tareas';
   static const String _channelDesc = 'Notificaciones para avisar antes del inicio de tus bloques de tiempo.';
+
+  static const String _pomodoroChannelId = 'clockdo_pomodoro_channel';
+  static const String _pomodoroChannelName = 'Temporizador Pomodoro';
+  static const String _pomodoroChannelDesc =
+      'Notificaciones y alarmas al terminar lapsos de concentración y descansos Pomodoro.';
+  static const int _pomodoroNotificationId = 888888;
+
+  /// Callback invocado cuando el usuario toca una notificación de Pomodoro
+  VoidCallback? onPomodoroNotificationTapped;
 
   Future<void> init() async {
     if (_isInitialized) return;
@@ -53,11 +63,14 @@ class NotificationService {
         initSettings,
         onDidReceiveNotificationResponse: (NotificationResponse response) {
           debugPrint('[ClockDo Notif] Notification tapped: ${response.payload}');
+          if (response.payload == 'pomodoro') {
+            onPomodoroNotificationTapped?.call();
+          }
         },
       );
       debugPrint('[ClockDo Notif] Plugin initialized: $initialized');
 
-      // Crear canal de Android explícitamente
+      // Crear canales de Android explícitamente
       final androidImpl = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (androidImpl != null) {
@@ -71,7 +84,19 @@ class NotificationService {
             enableVibration: true,
           ),
         );
-        debugPrint('[ClockDo Notif] Android notification channel created');
+
+        await androidImpl.createNotificationChannel(
+          AndroidNotificationChannel(
+            _pomodoroChannelId,
+            _pomodoroChannelName,
+            description: _pomodoroChannelDesc,
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+            vibrationPattern: Int64List.fromList([0, 500, 250, 500, 250, 750]),
+          ),
+        );
+        debugPrint('[ClockDo Notif] Android notification channels created');
       }
     } catch (e) {
       debugPrint('[ClockDo Notif] ERROR during init: $e');
@@ -150,6 +175,90 @@ class NotificationService {
       debugPrint('[ClockDo Notif] Test notification sent');
     } catch (e) {
       debugPrint('[ClockDo Notif] ERROR sending test notification: $e');
+    }
+  }
+
+  NotificationDetails _pomodoroNotificationDetails({bool sound = true}) {
+    final androidDetails = AndroidNotificationDetails(
+      _pomodoroChannelId,
+      _pomodoroChannelName,
+      channelDescription: _pomodoroChannelDesc,
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList([0, 500, 250, 500, 250, 750]),
+      playSound: sound,
+      category: AndroidNotificationCategory.alarm,
+      ticker: 'Pomodoro ClockDo',
+    );
+    final darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: sound,
+      interruptionLevel: InterruptionLevel.timeSensitive,
+    );
+    return NotificationDetails(android: androidDetails, iOS: darwinDetails);
+  }
+
+  /// Programa una notificación exacta para cuando termine el lapso de Pomodoro
+  Future<void> schedulePomodoroCompletion({
+    required DateTime scheduledDate,
+    required String title,
+    required String body,
+    bool sound = true,
+  }) async {
+    if (!_isInitialized) await init();
+
+    if (scheduledDate.isBefore(DateTime.now())) {
+      debugPrint('[ClockDo Notif] Pomodoro completion is in the past ($scheduledDate), skipping');
+      return;
+    }
+
+    await cancelPomodoroNotification();
+
+    final details = _pomodoroNotificationDetails(sound: sound);
+    await _scheduleSingleZonedNotification(
+      id: _pomodoroNotificationId,
+      title: title,
+      body: body,
+      scheduledDate: scheduledDate,
+      details: details,
+      payload: 'pomodoro',
+    );
+    debugPrint('[ClockDo Notif] Pomodoro completion notification scheduled for $scheduledDate');
+  }
+
+  /// Cancela cualquier notificación de Pomodoro programada
+  Future<void> cancelPomodoroNotification() async {
+    if (!_isInitialized) await init();
+    try {
+      await _plugin.cancel(_pomodoroNotificationId);
+      debugPrint('[ClockDo Notif] Cancelled Pomodoro notification #$_pomodoroNotificationId');
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR cancelling Pomodoro notification: $e');
+    }
+  }
+
+  /// Dispara una notificación inmediata cuando termina una sesión Pomodoro o un descanso.
+  Future<void> showPomodoroCompletionNotification({
+    required String title,
+    required String body,
+    bool sound = true,
+  }) async {
+    if (!_isInitialized) await init();
+    try {
+      final details = _pomodoroNotificationDetails(sound: sound);
+      await _plugin.show(
+        _pomodoroNotificationId,
+        title,
+        body,
+        details,
+        payload: 'pomodoro',
+      );
+      debugPrint('[ClockDo Notif] Pomodoro completion notification sent: "$title"');
+    } catch (e) {
+      debugPrint('[ClockDo Notif] ERROR sending Pomodoro notification: $e');
     }
   }
 
@@ -251,6 +360,7 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
     required NotificationDetails details,
+    String? payload,
   }) async {
     try {
       final scheduledTz = tz.TZDateTime.from(scheduledDate, tz.local);
@@ -263,6 +373,7 @@ class NotificationService {
           body,
           scheduledTz,
           details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
@@ -276,6 +387,7 @@ class NotificationService {
           body,
           scheduledTz,
           details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,

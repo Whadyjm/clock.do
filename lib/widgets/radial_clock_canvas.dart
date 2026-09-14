@@ -613,6 +613,7 @@ class RadialClockCanvas extends StatefulWidget {
   final bool isGoldenDial;
   final void Function(double startHour, double endHour) onGestureComplete;
   final void Function(String id)? onBlockTap;
+  final void Function(TimeBlock block)? onStartPomodoro;
 
   const RadialClockCanvas({
     super.key,
@@ -623,6 +624,7 @@ class RadialClockCanvas extends StatefulWidget {
     this.isGoldenDial = false,
     required this.onGestureComplete,
     this.onBlockTap,
+    this.onStartPomodoro,
   });
 
   @override
@@ -894,11 +896,11 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
                 ),
 
               // Botón flotante para activar/desactivar Modo Lupa
-              /*Positioned(
+              Positioned(
                 top: 4,
                 right: 4,
                 child: _buildMagnifierToggle(isDark),
-              ),*/
+              ),
 
               // Panel flotante de hora durante el gesto de creación
               if (_gestureStartAngle != null && _gestureCurrentAngle != null)
@@ -916,7 +918,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
 
   // ── Botón flotante de Modo Lupa ───────────────────────────
 
-  /*Widget _buildMagnifierToggle(bool isDark) {
+  Widget _buildMagnifierToggle(bool isDark) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -972,7 +974,7 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
         ),
       ),
     );
-  }*/
+  }
 
   // ── Tarjeta de Inspección Magnificada (Modo Lupa) ──────────
 
@@ -1237,7 +1239,46 @@ class _RadialClockCanvasState extends State<RadialClockCanvas>
 
               const SizedBox(height: 8),
 
-              // Acciones: Editar botón
+              // Acciones: Iniciar Pomodoro + Editar tarea
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    widget.onStartPomodoro?.call(block);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF2A3C), Color(0xFFD63031)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('🍅', style: TextStyle(fontSize: 12)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Pomodoro',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
               SizedBox(
                 width: double.infinity,
                 child: GestureDetector(

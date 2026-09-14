@@ -210,6 +210,32 @@ class Achievement {
       pointsReward: 45,
     ),
 
+    // ── Logros de Enfoque Pomodoro ──
+    Achievement(
+      id: 'pomodoro_first',
+      titleKey: 'badgePomodoroFirstTitle',
+      descriptionKey: 'badgePomodoroFirstDesc',
+      icon: Icons.local_fire_department_rounded,
+      color: Color(0xFFFF7675),
+      pointsReward: 25,
+    ),
+    Achievement(
+      id: 'pomodoro_master_4',
+      titleKey: 'badgePomodoroMaster4Title',
+      descriptionKey: 'badgePomodoroMaster4Desc',
+      icon: Icons.timer_rounded,
+      color: Color(0xFFE17055),
+      pointsReward: 50,
+    ),
+    Achievement(
+      id: 'pomodoro_zen_10',
+      titleKey: 'badgePomodoroZen10Title',
+      descriptionKey: 'badgePomodoroZen10Desc',
+      icon: Icons.all_inclusive_rounded,
+      color: Color(0xFF6C5CE7),
+      pointsReward: 100,
+    ),
+
     // ── Recompensas de Categoría: Trabajo (Work) ──
     Achievement(
       id: 'work_starter',
@@ -392,6 +418,7 @@ class GamificationData {
   final int streakFreezeCount;
   final int totalCompletedTasks;
   final int totalFocusMinutes;
+  final int totalPomodoroSessions;
   final Map<String, DateTime> unlockedAchievements;
   final Map<String, int> categoryCompletedTasks;
   final Map<String, int> categoryFocusMinutes;
@@ -404,6 +431,7 @@ class GamificationData {
     this.streakFreezeCount = 1,
     this.totalCompletedTasks = 0,
     this.totalFocusMinutes = 0,
+    this.totalPomodoroSessions = 0,
     this.unlockedAchievements = const {},
     this.categoryCompletedTasks = const {},
     this.categoryFocusMinutes = const {},
@@ -470,6 +498,7 @@ class GamificationData {
     int? streakFreezeCount,
     int? totalCompletedTasks,
     int? totalFocusMinutes,
+    int? totalPomodoroSessions,
     Map<String, DateTime>? unlockedAchievements,
     Map<String, int>? categoryCompletedTasks,
     Map<String, int>? categoryFocusMinutes,
@@ -482,6 +511,7 @@ class GamificationData {
       streakFreezeCount: streakFreezeCount ?? this.streakFreezeCount,
       totalCompletedTasks: totalCompletedTasks ?? this.totalCompletedTasks,
       totalFocusMinutes: totalFocusMinutes ?? this.totalFocusMinutes,
+      totalPomodoroSessions: totalPomodoroSessions ?? this.totalPomodoroSessions,
       unlockedAchievements: unlockedAchievements ?? this.unlockedAchievements,
       categoryCompletedTasks:
           categoryCompletedTasks ?? this.categoryCompletedTasks,
@@ -505,6 +535,7 @@ class GamificationData {
       'streakFreezeCount': streakFreezeCount,
       'totalCompletedTasks': totalCompletedTasks,
       'totalFocusMinutes': totalFocusMinutes,
+      'totalPomodoroSessions': totalPomodoroSessions,
       'unlockedAchievements': achievementsMap,
       'categoryCompletedTasks': categoryCompletedTasks,
       'categoryFocusMinutes': categoryFocusMinutes,
@@ -549,6 +580,7 @@ class GamificationData {
       streakFreezeCount: (json['streakFreezeCount'] as num?)?.toInt() ?? 1,
       totalCompletedTasks: (json['totalCompletedTasks'] as num?)?.toInt() ?? 0,
       totalFocusMinutes: (json['totalFocusMinutes'] as num?)?.toInt() ?? 0,
+      totalPomodoroSessions: (json['totalPomodoroSessions'] as num?)?.toInt() ?? 0,
       unlockedAchievements: achMap,
       categoryCompletedTasks: catTasksMap,
       categoryFocusMinutes: catMinMap,

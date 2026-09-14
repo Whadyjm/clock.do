@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/time_block.dart';
 import '../models/task_category.dart';
@@ -15,6 +16,7 @@ import '../services/connectivity_service.dart';
 import 'package:device_calendar/device_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../l10n/app_localizations.dart';
+import '../models/pomodoro_state.dart';
 
 const _kStorageKey = 'clockdo_tasks';
 const _kTodoStorageKey = 'clockdo_todos';
@@ -28,11 +30,14 @@ const _kDeviceCalSyncEnabledKey = 'clockdo_device_cal_sync_enabled';
 const _kSelectedDeviceCalIdsKey = 'clockdo_selected_device_cal_ids';
 const _kLastUserIdKey = 'clockdo_last_user_id';
 const _kViewModeStorageKey = 'clockdo_view_mode';
+const _kPomodoroSettingsKey = 'clockdo_pomodoro_settings';
+const _kPomodoroStateKey = 'clockdo_pomodoro_state';
 
 /// Modos de visualización principal de la aplicación.
 enum AppViewMode {
   clock,
-  kanban;
+  kanban,
+  pomodoro;
 
   String getLocalizedName(BuildContext context) {
     final l10n = context.l10n;
@@ -41,6 +46,8 @@ enum AppViewMode {
         return l10n.clockView;
       case AppViewMode.kanban:
         return l10n.kanbanView;
+      case AppViewMode.pomodoro:
+        return l10n.pomodoroView;
     }
   }
 }
@@ -265,6 +272,9 @@ class ClockProvider extends ChangeNotifier {
   /// Inicializa el servicio de notificaciones y solicita permisos.
   Future<void> _initNotifications() async {
     await _notifService.init();
+    _notifService.onPomodoroNotificationTapped = () {
+      setViewMode(AppViewMode.pomodoro);
+    };
     // Solicitar permisos de forma no-bloqueante (el usuario puede rechazar)
     _notifService.requestPermissions().then((granted) {
       debugPrint('[ClockProvider] Notification permission granted: $granted');
@@ -1225,7 +1235,7 @@ class ClockProvider extends ChangeNotifier {
   }
 
   // ──────────────────────────────────────────────
-  // Modo de Vista (Reloj / Kanban)
+  // Modo de Vista (Reloj / Kanban / Pomodoro)
   // ──────────────────────────────────────────────
 
   void setViewMode(AppViewMode mode) {
@@ -1246,6 +1256,381 @@ class ClockProvider extends ChangeNotifier {
   Future<void> _saveViewModeToStorage() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kViewModeStorageKey, _viewMode.name);
+  }
+
+  // ──────────────────────────────────────────────
+  // Motor y Estado de Pomodoro (Modo Enfoque)
+  // ──────────────────────────────────────────────
+  PomodoroSettings _pomodoroSettings = const PomodoroSettings();
+  PomodoroSessionState _pomodoroState = const PomodoroSessionState();
+  Timer? _pomodoroTimer;
+  DateTime? _pomodoroLastTick;
+
+  PomodoroSettings get pomodoroSettings => _pomodoroSettings;
+  PomodoroSessionState get pomodoroState => _pomodoroState;
+  bool get isPomodoroRunning => _pomodoroState.status == PomodoroStatus.running;
+  bool get hasActivePomodoroSession => _pomodoroState.status != PomodoroStatus.idle;
+
+  int _secondsForPhase(PomodoroPhase phase) {
+    switch (phase) {
+      case PomodoroPhase.focus:
+        return _pomodoroSettings.focusDurationMinutes * 60;
+      case PomodoroPhase.shortBreak:
+        return _pomodoroSettings.shortBreakDurationMinutes * 60;
+      case PomodoroPhase.longBreak:
+        return _pomodoroSettings.longBreakDurationMinutes * 60;
+    }
+  }
+
+  void _schedulePomodoroNotification() {
+    if (!_pomodoroSettings.enableNotifications) return;
+    if (_pomodoroState.remainingSeconds <= 0) return;
+
+    final scheduledDate = DateTime.now().add(Duration(seconds: _pomodoroState.remainingSeconds));
+    final phase = _pomodoroState.phase;
+    final taskTitle = _pomodoroState.activeTask?.title;
+
+    final String title;
+    final String body;
+
+    if (phase.isFocus) {
+      final taskPart = (taskTitle != null && taskTitle.trim().isNotEmpty) ? ': "$taskTitle"' : '';
+      title = '🎉 ¡Sesión de enfoque completada$taskPart!';
+      body = 'Completaste tu lapso de concentración. Tómate un merecido descanso.';
+    } else if (phase == PomodoroPhase.shortBreak) {
+      title = '⚡ ¡Descanso corto finalizado!';
+      body = 'Tu descanso ha terminado. ¿Listo para el siguiente bloque de concentración?';
+    } else {
+      title = '🌿 ¡Descanso largo finalizado!';
+      body = 'Ciclo completo terminado. ¡Momento de volver con energía!';
+    }
+
+    _notifService.schedulePomodoroCompletion(
+      scheduledDate: scheduledDate,
+      title: title,
+      body: body,
+      sound: _pomodoroSettings.soundEnabled,
+    );
+  }
+
+  void _cancelPomodoroNotification() {
+    _notifService.cancelPomodoroNotification();
+  }
+
+  void startPomodoro() {
+    if (_pomodoroState.status == PomodoroStatus.running) return;
+
+    int remaining = _pomodoroState.remainingSeconds;
+    int total = _pomodoroState.totalSeconds;
+
+    if (_pomodoroState.status == PomodoroStatus.idle || remaining <= 0) {
+      total = _secondsForPhase(_pomodoroState.phase);
+      remaining = total;
+    }
+
+    _pomodoroState = _pomodoroState.copyWith(
+      status: PomodoroStatus.running,
+      remainingSeconds: remaining,
+      totalSeconds: total,
+    );
+
+    _pomodoroLastTick = DateTime.now();
+    _pomodoroTimer?.cancel();
+    _pomodoroTimer = Timer.periodic(const Duration(milliseconds: 500), _onPomodoroTick);
+    _schedulePomodoroNotification();
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void pausePomodoro() {
+    if (_pomodoroState.status != PomodoroStatus.running) return;
+    _pomodoroTimer?.cancel();
+    _pomodoroTimer = null;
+    _cancelPomodoroNotification();
+    _pomodoroState = _pomodoroState.copyWith(status: PomodoroStatus.paused);
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void resumePomodoro() {
+    startPomodoro();
+  }
+
+  void resetPomodoro() {
+    _pomodoroTimer?.cancel();
+    _pomodoroTimer = null;
+    _cancelPomodoroNotification();
+    final phaseSecs = _secondsForPhase(_pomodoroState.phase);
+    _pomodoroState = _pomodoroState.copyWith(
+      status: PomodoroStatus.idle,
+      remainingSeconds: phaseSecs,
+      totalSeconds: phaseSecs,
+    );
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void setPomodoroPhase(PomodoroPhase phase) {
+    if (_pomodoroState.phase == phase) return;
+    _pomodoroTimer?.cancel();
+    _pomodoroTimer = null;
+    _cancelPomodoroNotification();
+    final phaseSecs = _secondsForPhase(phase);
+    _pomodoroState = _pomodoroState.copyWith(
+      phase: phase,
+      status: PomodoroStatus.idle,
+      remainingSeconds: phaseSecs,
+      totalSeconds: phaseSecs,
+    );
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void skipPomodoroPhase() {
+    _pomodoroTimer?.cancel();
+    _pomodoroTimer = null;
+    _cancelPomodoroNotification();
+
+    PomodoroPhase nextPhase;
+    int nextCycles = _pomodoroState.completedCycles;
+
+    if (_pomodoroState.phase.isFocus) {
+      if (nextCycles + 1 >= _pomodoroSettings.longBreakInterval) {
+        nextPhase = PomodoroPhase.longBreak;
+        nextCycles = 0;
+      } else {
+        nextPhase = PomodoroPhase.shortBreak;
+        nextCycles = nextCycles + 1;
+      }
+    } else {
+      nextPhase = PomodoroPhase.focus;
+    }
+
+    final totalSecs = _secondsForPhase(nextPhase);
+    _pomodoroState = _pomodoroState.copyWith(
+      phase: nextPhase,
+      status: PomodoroStatus.idle,
+      remainingSeconds: totalSecs,
+      totalSeconds: totalSecs,
+      completedCycles: nextCycles,
+    );
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void adjustPomodoroTime(int deltaMinutes) {
+    final deltaSeconds = deltaMinutes * 60;
+    final newRemaining = (_pomodoroState.remainingSeconds + deltaSeconds).clamp(60, 180 * 60);
+    final newTotal = _pomodoroState.totalSeconds < newRemaining ? newRemaining : _pomodoroState.totalSeconds;
+
+    _pomodoroState = _pomodoroState.copyWith(
+      remainingSeconds: newRemaining,
+      totalSeconds: newTotal,
+    );
+    if (_pomodoroState.status == PomodoroStatus.running) {
+      _schedulePomodoroNotification();
+    }
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void setPomodoroActiveTask({
+    required String id,
+    required String title,
+    required TaskCategory category,
+    bool isTodo = false,
+  }) {
+    _pomodoroState = _pomodoroState.copyWith(
+      activeTask: PomodoroActiveTask(
+        id: id,
+        title: title,
+        category: category,
+        isTodo: isTodo,
+      ),
+    );
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void clearPomodoroActiveTask() {
+    _pomodoroState = _pomodoroState.copyWith(clearActiveTask: true);
+    _savePomodoroStateToStorage();
+    notifyListeners();
+  }
+
+  void completePomodoroTask() {
+    if (_pomodoroState.activeTask == null) return;
+    final task = _pomodoroState.activeTask!;
+    if (task.isTodo) {
+      toggleTodo(task.id);
+    } else {
+      setBlockStatus(task.id, TaskStatus.completed);
+    }
+  }
+
+  void updatePomodoroSettings(PomodoroSettings newSettings) {
+    _pomodoroSettings = newSettings;
+    _savePomodoroSettingsToStorage();
+
+    if (_pomodoroState.status == PomodoroStatus.idle) {
+      final newSecs = _secondsForPhase(_pomodoroState.phase);
+      _pomodoroState = _pomodoroState.copyWith(
+        remainingSeconds: newSecs,
+        totalSeconds: newSecs,
+      );
+      _savePomodoroStateToStorage();
+    }
+    notifyListeners();
+  }
+
+  void _onPomodoroTick(Timer timer) {
+    if (_pomodoroState.status != PomodoroStatus.running) return;
+
+    final now = DateTime.now();
+    final elapsedSecs = _pomodoroLastTick != null
+        ? now.difference(_pomodoroLastTick!).inSeconds
+        : 1;
+
+    if (elapsedSecs < 1) return;
+    _pomodoroLastTick = now;
+
+    final newRemaining = _pomodoroState.remainingSeconds - elapsedSecs;
+
+    if (newRemaining <= 0) {
+      _onPomodoroPhaseCompleted();
+    } else {
+      _pomodoroState = _pomodoroState.copyWith(remainingSeconds: newRemaining);
+      notifyListeners();
+    }
+  }
+
+  void _onPomodoroPhaseCompleted() {
+    _pomodoroTimer?.cancel();
+    _pomodoroTimer = null;
+    _cancelPomodoroNotification();
+
+    try {
+      HapticFeedback.heavyImpact();
+    } catch (_) {}
+
+    final completedPhase = _pomodoroState.phase;
+    final taskTitle = _pomodoroState.activeTask?.title;
+
+    if (completedPhase.isFocus) {
+      const ticksEarned = 15;
+      final focusMinutes = _pomodoroSettings.focusDurationMinutes;
+      final newCompletedSessions = _pomodoroState.totalPomodorosToday + 1;
+      final newFocusMinutesToday = _pomodoroState.totalFocusMinutesToday + focusMinutes;
+
+      // Actualizar Gamification
+      final oldLevel = _gamification.currentLevel;
+      final newTicks = _gamification.ticks + ticksEarned;
+      final newTotalMinutes = _gamification.totalFocusMinutes + focusMinutes;
+      final newTotalPomodoros = _gamification.totalPomodoroSessions + 1;
+
+      final updatedCategoryMinutes = Map<String, int>.from(_gamification.categoryFocusMinutes);
+      if (_pomodoroState.activeTask != null) {
+        final catId = _pomodoroState.activeTask!.category.id;
+        updatedCategoryMinutes[catId] = (updatedCategoryMinutes[catId] ?? 0) + focusMinutes;
+      }
+
+      _gamification = _gamification.copyWith(
+        ticks: newTicks,
+        totalFocusMinutes: newTotalMinutes,
+        totalPomodoroSessions: newTotalPomodoros,
+        categoryFocusMinutes: updatedCategoryMinutes,
+      );
+
+      final newLevel = _gamification.currentLevel;
+      if (newLevel.level > oldLevel.level) {
+        _latestLevelUp = newLevel;
+      }
+
+      _saveGamificationToStorage();
+      _pushGamificationRemote();
+
+      // Disparar Notificación si está habilitada
+      if (_pomodoroSettings.enableNotifications) {
+        final taskPart = (taskTitle != null && taskTitle.trim().isNotEmpty) ? ': "$taskTitle"' : '';
+        _notifService.showPomodoroCompletionNotification(
+          title: '🎉 ¡Sesión de enfoque completada$taskPart!',
+          body: 'Completaste $focusMinutes min de concentración. Tómate un merecido descanso (+15 Ticks).',
+          sound: _pomodoroSettings.soundEnabled,
+        );
+      }
+
+      // Siguiente fase: descanso corto o descanso largo
+      final nextCycle = _pomodoroState.completedCycles + 1;
+      PomodoroPhase nextPhase;
+      int nextCycles;
+
+      if (nextCycle >= _pomodoroSettings.longBreakInterval) {
+        nextPhase = PomodoroPhase.longBreak;
+        nextCycles = 0;
+      } else {
+        nextPhase = PomodoroPhase.shortBreak;
+        nextCycles = nextCycle;
+      }
+
+      final nextSecs = _secondsForPhase(nextPhase);
+      _pomodoroState = _pomodoroState.copyWith(
+        phase: nextPhase,
+        status: PomodoroStatus.idle,
+        remainingSeconds: nextSecs,
+        totalSeconds: nextSecs,
+        completedCycles: nextCycles,
+        totalPomodorosToday: newCompletedSessions,
+        totalFocusMinutesToday: newFocusMinutesToday,
+      );
+
+      _evaluateAchievements();
+
+      if (_pomodoroSettings.autoStartBreaks) {
+        startPomodoro();
+      } else {
+        _savePomodoroStateToStorage();
+        notifyListeners();
+      }
+    } else {
+      // Fin de descanso
+      if (_pomodoroSettings.enableNotifications) {
+        final isShort = completedPhase == PomodoroPhase.shortBreak;
+        _notifService.showPomodoroCompletionNotification(
+          title: isShort ? '⚡ ¡Descanso corto finalizado!' : '🌿 ¡Descanso largo finalizado!',
+          body: isShort
+              ? '¿Listo para tu siguiente bloque de concentración?'
+              : 'Ciclo completo terminado. Es hora de comenzar un nuevo bloque de enfoque.',
+          sound: _pomodoroSettings.soundEnabled,
+        );
+      }
+
+      const nextPhase = PomodoroPhase.focus;
+      final nextSecs = _secondsForPhase(nextPhase);
+
+      _pomodoroState = _pomodoroState.copyWith(
+        phase: nextPhase,
+        status: PomodoroStatus.idle,
+        remainingSeconds: nextSecs,
+        totalSeconds: nextSecs,
+      );
+
+      if (_pomodoroSettings.autoStartPomodoros) {
+        startPomodoro();
+      } else {
+        _savePomodoroStateToStorage();
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _savePomodoroSettingsToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kPomodoroSettingsKey, jsonEncode(_pomodoroSettings.toJson()));
+  }
+
+  Future<void> _savePomodoroStateToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kPomodoroStateKey, jsonEncode(_pomodoroState.toJson()));
   }
 
   // ──────────────────────────────────────────────
@@ -1477,14 +1862,48 @@ class ClockProvider extends ChangeNotifier {
       _lastUserId = prefs.getString(_kLastUserIdKey);
     }
 
-    // Cargar Modo de Vista (Reloj / Kanban)
+    // Cargar Modo de Vista (Reloj / Kanban / Pomodoro)
     if (prefs.containsKey(_kViewModeStorageKey)) {
       final savedMode = prefs.getString(_kViewModeStorageKey);
       if (savedMode == AppViewMode.kanban.name) {
         _viewMode = AppViewMode.kanban;
+      } else if (savedMode == AppViewMode.pomodoro.name) {
+        _viewMode = AppViewMode.pomodoro;
       } else {
         _viewMode = AppViewMode.clock;
       }
+    }
+
+    // Cargar Configuración y Estado de Pomodoro
+    if (prefs.containsKey(_kPomodoroSettingsKey)) {
+      try {
+        final raw = prefs.getString(_kPomodoroSettingsKey);
+        if (raw != null) {
+          _pomodoroSettings = PomodoroSettings.fromJson(jsonDecode(raw));
+        }
+      } catch (e) {
+        debugPrint('[ClockProvider] Error loading Pomodoro settings: $e');
+      }
+    }
+    if (prefs.containsKey(_kPomodoroStateKey)) {
+      try {
+        final raw = prefs.getString(_kPomodoroStateKey);
+        if (raw != null) {
+          final loaded = PomodoroSessionState.fromJson(jsonDecode(raw));
+          _pomodoroState = loaded.copyWith(
+            status: loaded.status.isRunning ? PomodoroStatus.paused : loaded.status,
+          );
+        }
+      } catch (e) {
+        debugPrint('[ClockProvider] Error loading Pomodoro state: $e');
+      }
+    } else {
+      _pomodoroState = PomodoroSessionState(
+        phase: PomodoroPhase.focus,
+        status: PomodoroStatus.idle,
+        remainingSeconds: _pomodoroSettings.focusDurationMinutes * 60,
+        totalSeconds: _pomodoroSettings.focusDurationMinutes * 60,
+      );
     }
 
     // Cargar Recordatorios Globales
@@ -1863,6 +2282,17 @@ class ClockProvider extends ChangeNotifier {
 
     // 10. Recompensas por Categoría y Sinergia
     _evaluateCategoryAchievements();
+
+    // 11. Logros de Pomodoro
+    if (_gamification.totalPomodoroSessions >= 1) {
+      _unlockAchievement('pomodoro_first');
+    }
+    if (_pomodoroState.totalPomodorosToday >= 4) {
+      _unlockAchievement('pomodoro_master_4');
+    }
+    if (_gamification.totalPomodoroSessions >= 10) {
+      _unlockAchievement('pomodoro_zen_10');
+    }
   }
 
   /// Evalúa logros específicos basados en tareas completadas por categoría y sinergia
@@ -1900,6 +2330,7 @@ class ClockProvider extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _clockTimer?.cancel();
+    _pomodoroTimer?.cancel();
     _authSub?.cancel();
     _connectivitySub?.cancel();
     super.dispose();

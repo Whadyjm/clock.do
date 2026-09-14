@@ -387,6 +387,54 @@ abstract class AppLocalizations {
   String get filterAllCategories;
   String get moveToPreviousStatus;
   String get moveToNextStatus;
+
+  // ── Modo Pomodoro / Enfoque ──
+  String get pomodoroView;
+  String get pomodoroFocus;
+  String get pomodoroShortBreak;
+  String get pomodoroLongBreak;
+  String get pomodoroStart;
+  String get pomodoroPause;
+  String get pomodoroResume;
+  String get pomodoroReset;
+  String get pomodoroSkip;
+  String get pomodoroSelectTask;
+  String get pomodoroFreeFocus;
+  String get pomodoroNoActiveTask;
+  String get pomodoroChangeTask;
+  String get pomodoroCompleteTask;
+  String get pomodoroMarkCompleted;
+  String get pomodoroSettings;
+  String get pomodoroFocusDuration;
+  String get pomodoroShortBreakDuration;
+  String get pomodoroLongBreakDuration;
+  String get pomodoroCyclesBeforeLongBreak;
+  String get pomodoroAutoStartBreaks;
+  String get pomodoroAutoStartFocus;
+  String get pomodoroCompletedSessions;
+  String get pomodoroTotalFocusTime;
+  String get pomodoroTicksEarned;
+  String get pomodoroRound;
+  String get pomodoroMinutesShort;
+  String get pomodoroStartFocusPrompt;
+  String get pomodoroFocusCompletedNotificationTitle;
+  String get pomodoroFocusCompletedNotificationBody;
+  String get pomodoroBreakCompletedNotificationTitle;
+  String get pomodoroBreakCompletedNotificationBody;
+  String get pomodoroStartWithTask;
+  String get pomodoroChooseFromSchedule;
+  String get pomodoroChooseFromBacklog;
+
+  // ── Logros de Pomodoro ──
+  String get pomodoroNotificationSettingTitle;
+  String get pomodoroNotificationSettingDesc;
+  String get pomodoroSoundSettingTitle;
+  String get badgePomodoroFirstTitle;
+  String get badgePomodoroFirstDesc;
+  String get badgePomodoroMaster4Title;
+  String get badgePomodoroMaster4Desc;
+  String get badgePomodoroZen10Title;
+  String get badgePomodoroZen10Desc;
 }
 
 class _AppLocalizationsDelegate

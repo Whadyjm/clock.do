@@ -177,6 +177,10 @@ class SupabaseService {
       final map = block.toSupabaseMap();
       map['user_id'] = user.id;
       map['updated_at'] = DateTime.now().toUtc().toIso8601String();
+      // Remover campos de calendario externo que son de ámbito exclusivamente local en el dispositivo
+      map.remove('external_calendar_name');
+      map.remove('external_event_id');
+      map.remove('is_external_calendar');
 
       await supa.from('time_blocks').upsert(map);
       return true;

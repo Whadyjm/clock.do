@@ -129,6 +129,9 @@ ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER
 ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS category_id TEXT;
 ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS recurrence JSONB;
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS is_external_calendar BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS external_event_id TEXT;
+ALTER TABLE public.time_blocks ADD COLUMN IF NOT EXISTS external_calendar_name TEXT;
 
 ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS category_id TEXT;
 ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 0;
