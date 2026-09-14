@@ -99,6 +99,21 @@ abstract class AppLocalizations {
   String get onboardingStep4Badge;
   String get onboardingStep4Title;
   String get onboardingStep4Desc;
+  String get onboardingStep5Badge;
+  String get onboardingStep5Title;
+  String get onboardingStep5Desc;
+  String get onboardingStep6Badge;
+  String get onboardingStep6Title;
+  String get onboardingStep6Desc;
+  String get onboardingEnableReminders;
+  String get onboardingRemindersActive;
+  String get onboardingRemindersDisabled;
+  String get onboardingSelectAdvance;
+  String get onboardingThemePreference;
+  String get onboardingLanguagePreference;
+  String get onboardingThemeLight;
+  String get onboardingThemeDark;
+  String get onboardingThemeSystem;
 
   // ── Selector de Idioma ──
   String get languageTitle;

@@ -353,25 +353,58 @@ class AppLocalizationsEs extends AppLocalizations {
   String get onboardingStep1Desc => 'Despídete de las listas lineales aburridas. Visualiza y domina todo tu día en un hermoso reloj circular interactivo.';
 
   @override
-  String get onboardingStep2Badge => '🎯 ENFOQUE TOTAL';
+  String get onboardingStep2Badge => '📋 TABLERO KANBAN';
   @override
-  String get onboardingStep2Title => 'Planifica al Instante con un Toque';
+  String get onboardingStep2Title => 'Control Visual y Flujo Ágil';
   @override
-  String get onboardingStep2Desc => 'Arrastra sobre el dial para agendar tareas o guarda tus pendientes en el backlog listos para ser programados.';
+  String get onboardingStep2Desc => 'Organiza tus tareas en columnas dinámicas: Backlog, En Progreso y Completadas. Arrastra y suelta con total libertad para avanzar sin fricción.';
 
   @override
-  String get onboardingStep3Badge => '🔔 SINCRONIZADO & SEGURO';
+  String get onboardingStep3Badge => '🍅 MODO POMODORO';
   @override
-  String get onboardingStep3Title => 'Puntualidad Absoluta y en la Nube';
+  String get onboardingStep3Title => 'Deep Work y Enfoque Total';
   @override
-  String get onboardingStep3Desc => 'Alertas inteligentes con anticipación personalizada y respaldo automático en la nube para no perder nada jamás.';
+  String get onboardingStep3Desc => 'Supera las distracciones con temporizadores orbitales de 25 minutos, pausas regenerativas y ciclos de concentración máxima.';
 
   @override
-  String get onboardingStep4Badge => '✨ TODO LISTO';
+  String get onboardingStep4Badge => '🔔 RECORDATORIOS INTELIGENTES';
   @override
-  String get onboardingStep4Title => 'Bienvenido a Clock.Do';
+  String get onboardingStep4Title => 'Alertas Puntuales a tu Medida';
   @override
-  String get onboardingStep4Desc => 'Tu día organizado, tus metas alcanzadas y tu tiempo bajo control absoluto. ¡Es hora de comenzar!';
+  String get onboardingStep4Desc => 'Activa las notificaciones para que Clock.Do te avise antes de cada tarea. Elige el tiempo de anticipación que mejor se adapte a tu ritmo.';
+
+  @override
+  String get onboardingStep5Badge => '🎨 PERSONALIZACIÓN';
+  @override
+  String get onboardingStep5Title => 'A tu Estilo y en tu Idioma';
+  @override
+  String get onboardingStep5Desc => 'Elige el tema visual y el idioma de tu preferencia. Cambian en tiempo real y podrás modificarlos cuando quieras.';
+
+  @override
+  String get onboardingStep6Badge => '✨ TODO LISTO';
+  @override
+  String get onboardingStep6Title => 'Bienvenido a Clock.Do';
+  @override
+  String get onboardingStep6Desc => 'Tu día organizado, tus preferencias listas y tu tiempo bajo control absoluto. ¡Es hora de comenzar!';
+
+  @override
+  String get onboardingEnableReminders => 'Permitir Notificaciones';
+  @override
+  String get onboardingRemindersActive => 'Permiso concedido · Alertas activas';
+  @override
+  String get onboardingRemindersDisabled => 'Notificaciones desactivadas';
+  @override
+  String get onboardingSelectAdvance => 'ANTICIPACIÓN DE AVISO';
+  @override
+  String get onboardingThemePreference => 'TEMA DE LA APP';
+  @override
+  String get onboardingLanguagePreference => 'IDIOMA PREFERIDO';
+  @override
+  String get onboardingThemeLight => 'Claro';
+  @override
+  String get onboardingThemeDark => 'Oscuro';
+  @override
+  String get onboardingThemeSystem => 'Sistema';
 
   // ── Gamificación & Maestría del Tiempo (ES) ──
   @override
